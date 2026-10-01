@@ -10,9 +10,13 @@ exactly as if you had modelled it yourself, and every one of them editable after
   &nbsp;
   <img src="docs/images/tree_fan_adapter.png" width="380" alt="Fan adapter feature tree in Onshape">
 </p>
-<p align="center"><em>Generated from one-line descriptions: a pillow block and a fan adapter, as ordinary
+<p align="center"><em>Generated from short written descriptions: a pillow block and a fan adapter, as ordinary
 Onshape feature trees (screenshots from Onshape). Nothing is imported geometry; fsgen created every sketch and
 feature through the Onshape API.</em></p>
+
+**See for yourself:** the example parts are in a [public Onshape document](https://cad.onshape.com/documents/1fb090da32717a692a4130a3/w/dd197b61b6df7a8ada3240df/e/1bf2dc907f8a5ed598df9b97): open it with any Onshape
+account, copy it, and change a variable or a sketch. The descriptions the generated parts were made from are
+in [examples/prompts.md](examples/prompts.md).
 
 ## What makes it different
 
@@ -37,15 +41,17 @@ definitions before anything is sent.
 <em>The pillow block's variables in its Variable Studio: change a value and the part updates.</em></p>
 
 <details>
-<summary><b>More generated parts</b> (NEMA 17 motor mount, enclosure, flange)</summary>
+<summary><b>More parts built with fsgen</b> (NEMA 17 motor mount, enclosure, flange)</summary>
 <br>
 <p align="center">
   <img src="docs/images/tree_nema17_mount.png" width="270" alt="NEMA 17 motor mount feature tree">
   <img src="docs/images/tree_enclosure.png" width="270" alt="Enclosure feature tree">
   <img src="docs/images/tree_flange.png" width="270" alt="Flange feature tree">
 </p>
-<p align="center"><em>NEMA 17 mount (27 features, slots, mirrored screw holes, inside fillet) · enclosure (shell,
-rounded corners, bosses on an offset plane, cable hole) · flange (revolve, bolt-hole circular pattern, chamfer)</em></p>
+<p align="center"><em>NEMA 17 mount, generated from a description (23 features including its 12 variables;
+slots, mirrored screw holes, inside fillet) · enclosure (shell, rounded corners, bosses on an offset plane, cable
+hole) and flange (revolve, bolt-hole circular pattern, chamfer): hand-written reference scripts that serve as the
+AI's examples, built in Onshape by fsgen</em></p>
 </details>
 
 ## How it works
@@ -64,7 +70,7 @@ rounded corners, bosses on an offset plane, cable hole) · flange (revolve, bolt
 The local test build is a supporting tool, not the point: an OpenCascade engine that reproduces Onshape's
 feature behaviour, so mistakes are caught and fixed before they cost API calls, and the result can be checked
 (sizes, holes, volume, a preview image). Onshape's education plans allow 2,500 API calls per year, so fsgen
-shows the cost before each push (a typical part: about 15–30 calls) and re-sends only what changed.
+shows the cost before each push (the example parts: 11–19 calls each) and re-sends only what changed.
 
 If you don't need to edit the sketches later, there is a **0-call alternative**: the same part as one
 parametric custom feature that you paste into a Feature Studio and adjust through its parameter dialog.
@@ -77,6 +83,16 @@ A handle for the NEO Tools 04-227 precision bits, designed in a chat with the pr
 online: three parts laid out for printing, an M12 × 2 thread with a collet nut that clamps the bit, and a
 snap-on end cap (local preview; the fit of the thread was checked locally). Script:
 [examples/native/generated/neo_screwdriver.fs](examples/native/generated/neo_screwdriver.fs).
+
+### How is this different from the Onshape MCP servers?
+
+Onshape's [FeatureScript MCP server](https://www.onshape.com/en/blog/get-started-featurescript-mcp-server)
+writes custom features. Community MCP servers (e.g. [onshape-mcp](https://github.com/hedless/onshape-mcp))
+let an AI create native features one tool call at a time and check each one in Onshape, so every attempt and
+correction costs API calls. fsgen writes the whole part first, checks and builds it locally, and then pushes
+it with a known number of calls. The limit of this approach: features the local builder can't build yet are
+only checked against Onshape's feature definitions offline; their geometry is checked in Onshape after the
+push (see [What it can build today](#what-it-can-build-today)).
 
 ## Quick start
 
@@ -168,9 +184,13 @@ All commands and options: [docs/REFERENCE.md](docs/REFERENCE.md).
 
 ## Status and limitations
 
-Experimental: built and tested by one person over a few sessions. Dimensions the description
-doesn't give are assumed (and listed in `assumptions.md`) or looked up on the web. Sketches on
-part faces and several advanced features are not supported yet. Not affiliated with Onshape or PTC.
+Experimental: built and tested by one person over a few sessions, with help from Claude Code. Dimensions
+the description doesn't give are assumed (and listed in `assumptions.md`) or looked up on the web, and
+dimensions that contradict each other may be changed (see the fan adapter in
+[examples/prompts.md](examples/prompts.md)). How many repair rounds a part needs depends on the model: complex
+parts need a strong one and more tokens. Sketches on part faces and several advanced features
+are not supported yet. Threads build locally, but some helix/sweep details are not yet confirmed in Onshape.
+Not affiliated with Onshape or PTC.
 
 ## Credits and license
 

@@ -1,0 +1,56 @@
+name: A part came out wrong
+description: The generated part, script or feature tree is not what you described, or the push failed.
+labels: ["part"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Your description
+      description: The exact text you gave fsgen or your assistant.
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What went wrong
+      description: What you expected and what you got. Screenshots of the part or the feature tree help a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: script
+    attributes:
+      label: Part Studio script
+      description: The generated `.fs` file (from `parts/` or the run's output folder), if there is one.
+      render: text
+  - type: dropdown
+    id: mode
+    attributes:
+      label: How did you run it?
+      options:
+        - Claude Code (/make-part)
+        - Another coding assistant (AGENTS.md)
+        - fsgen generate (Claude)
+        - fsgen generate (other LLM via FSGEN_LLM_COMMAND)
+        - By hand
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      placeholder: e.g. claude-opus-5-5, qwen2.5-coder:32b
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where did it go wrong?
+      options:
+        - Script check / local build
+        - Paste into a Feature Studio
+        - Push to Onshape (native tree)
+        - The part is built but wrong
+  - type: textarea
+    id: output
+    attributes:
+      label: Error output
+      description: Terminal output or the Onshape feature error, if any.
+      render: text
