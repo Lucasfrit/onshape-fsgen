@@ -3,7 +3,7 @@
 **Describe a part in words and get a real Onshape part: sketches, extrudes and fillets in the feature tree,
 exactly as if you had modelled it yourself, and every one of them editable afterwards.**
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Python 3.12](https://img.shields.io/badge/python-3.12-blue) ![Status: experimental](https://img.shields.io/badge/status-experimental-orange) ![Onshape](https://img.shields.io/badge/CAD-Onshape-0b6fcf)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%E2%80%933.14-blue) ![Status: experimental](https://img.shields.io/badge/status-experimental-orange) ![Onshape](https://img.shields.io/badge/CAD-Onshape-0b6fcf)
 
 <p align="center">
   <img src="docs/images/tree_pillow_block.png" width="380" alt="Pillow block feature tree in Onshape">
@@ -80,12 +80,12 @@ snap-on end cap (local preview; the fit of the thread was checked locally). Scri
 
 ## Quick start
 
-Requirements: Python 3.12, an Onshape account with API keys (*My Account → Developer → API keys*), and an AI to
+Requirements: Python 3.11–3.14 (tested on 3.12 and 3.14), an Onshape account with API keys (*My Account → Developer → API keys*), and an AI to
 do the designing (see [Which AI?](#which-ai) — Claude works out of the box).
 
 ```bash
 git clone https://github.com/Lucasfrit/onshape-fsgen && cd onshape-fsgen
-python3.12 -m venv .venv && .venv/bin/pip install -e . pytest
+python3.14 -m venv .venv && .venv/bin/pip install -e . pytest   # or python3.12 / 3.13
 cp .env.example .env          # add your Onshape API keys
 .venv/bin/pytest              # offline test suite, no API calls
 ```

@@ -252,3 +252,10 @@ LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists;
   `fsgen generate` (`FSGEN_LLM_COMMAND`, prompt on stdin / answer on stdout: Ollama, Gemini CLI, `llm`, …),
   tested with a stand-in CLI in `tests/test_generate_loop.py`, and `AGENTS.md` with the shared workflow for
   other coding assistants (Codex, Cursor, Copilot, Gemini CLI). Only Claude has actually been used so far.
+
+## Python 3.14 (2026-10-01)
+
+- Newest stable Python is 3.14 (3.14.8). `cadquery-ocp` 8.0.1 ships wheels for cp311–cp314 and build123d 0.13
+  requires `<3.15`, so 3.14 is the newest usable version. On Python 3.14.3 (Homebrew) all 71 tests pass and the
+  CLI gives identical results; only DeprecationWarnings from `lib3mf` (ctypes `_pack_`, slated to error in 3.19).
+  `requires-python` is now `>=3.11,<3.15`. Python 3.15 will need new OCP wheels first.
