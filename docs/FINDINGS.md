@@ -236,3 +236,10 @@ told which features its delivery mode supports and paste mode rejects others rig
 a required `Assumptions:` section is saved to `assumptions.md` and logged; the background `claude -p` may use
 WebSearch/WebFetch (`--no-web` to turn off); 3D-printing rules in `rules.md`; output folder named from `--name`;
 LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists; commit before parallel work.
+
+## Confirmed in Onshape from the user's screenshots (2026-10-01)
+
+- Variable features now show as `#name = value` in the feature tree (e.g. `#slotLength = 40 mm`), confirming the
+  `###name = #value` name template + hidden `value` parameter fix.
+- The fan adapter, enclosure, NEMA 17 mount and flange trees show readable feature names, sketches, extrudes,
+  loft, patterns, mirrors and fillets as ordinary Onshape features (one part each).

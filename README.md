@@ -1,63 +1,67 @@
 # onshape-fsgen
 
-**Describe a part in words, get a parametric Onshape part.** An LLM designs the part as FeatureScript; fsgen
-checks and builds it locally, then delivers it to Onshape either as a **native, editable feature tree** or as a
-**custom feature you paste in for free**.
+**Describe a part in words and get a real Onshape part: sketches, extrudes and fillets in the feature tree,
+exactly as if you had modelled it yourself, and every one of them editable afterwards.**
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Python 3.12](https://img.shields.io/badge/python-3.12-blue) ![Status: experimental](https://img.shields.io/badge/status-experimental-orange) ![Onshape](https://img.shields.io/badge/CAD-Onshape-0b6fcf)
 
-| NEMA 17 motor mount | Fan adapter | Flange | Enclosure |
-|:---:|:---:|:---:|:---:|
-| ![NEMA 17 mount](docs/images/nema17_mount.png) | ![Fan adapter](docs/images/fan_adapter.png) | ![Flange](docs/images/flange.png) | ![Enclosure](docs/images/enclosure.png) |
-| from a one-line prompt, 23 features | from a prompt: loft + linear pattern | revolve, bolt pattern, chamfer | shell, bosses, offset plane |
+| | |
+|:---:|:---:|
+| ![Fan adapter feature tree](docs/images/tree_fan_adapter.png) | ![NEMA 17 mount feature tree](docs/images/tree_nema17_mount.png) |
+| **Fan adapter**, from one prompt: variables, sketches, extrude, loft, linear pattern, mirrors | **NEMA 17 motor mount**, from one prompt: 27 features, slots, mirrored screw holes, inside fillet |
+| ![Enclosure feature tree](docs/images/tree_enclosure.png) | ![Flange feature tree](docs/images/tree_flange.png) |
+| **Enclosure**: shell, rounded corners, bosses on an offset plane, cable hole | **Flange**: revolved profile, bolt-hole circular pattern, rim chamfer |
 
-*Rendered by Onshape. Every part is an ordinary Onshape feature tree: open any sketch, change `#width`, and the
-model updates.*
+*Screenshots from Onshape. Nothing here is imported geometry: each part is an ordinary feature tree that fsgen
+created feature by feature through the Onshape API.*
 
-## Why this exists
+## What makes it different
 
-- **Editable results, not dead geometry.** Most text-to-CAD tools hand you a mesh, a STEP, or one opaque custom
-  feature. fsgen builds the tree a person would: Variables, constrained and dimensioned Sketches, Extrudes,
-  Revolves, Fillets, Patterns. Sketch dimensions are live expressions like `#width / 2 - #holeInset`.
-- **Built for Onshape's API limits.** Education plans get 2,500 API calls *per year*. fsgen does everything it can
-  offline, shows the cost before each push (e.g. "13 calls = 0.7 % of what's left"), re-pushes only changed
-  features, and offers a **0-call paste workflow**.
-- **A local builder that agrees with Onshape.** An OpenCascade engine reproduces Onshape's feature semantics, so
-  the LLM can iterate and review offline. It matches Onshape's volume on every reference part, and its quirks
-  were measured against the real thing (see [findings](docs/FINDINGS.md)).
-- **Learns features on the way.** All 98 Onshape standard features are callable; parameters are validated
-  against Onshape's own feature specs, and features that build successfully are added to a catalog of examples.
+LLM-generated 3D models are easy to find, but they arrive as a mesh, a STEP file or one opaque block of code:
+geometry you can look at but not really edit. fsgen builds the part **the way a person would in Onshape**:
+
+- **Variables** at the top of the tree (`#slotLength = 40 mm`, `#boltCount = 6`), shown and edited like any
+  Onshape variable.
+- **Sketches with constraints and dimensions**, driven by those variables: rectangles, circles, slots and
+  profiles are dimensioned with live expressions such as `#width / 2 - #holeInset`. Change a variable and the
+  sketch, and everything built on it, updates.
+- **Standard features**: Extrude (new / add / remove), Revolve, Loft, Sweep along a helix (threads), Fillet,
+  Chamfer, Shell, Plane, Linear / Circular / Mirror patterns, Boolean… with readable names ("Base plate",
+  "Vent slot pattern", "Inside fillet").
+- **Edit anything afterwards** in Onshape, by hand, or by changing the script and pushing again; fsgen then
+  updates only the features that changed.
+
+All 98 Onshape standard features can be used; parameters are checked against Onshape's own feature
+definitions before anything is sent.
 
 ## How it works
 
 ```
-"60 x 40 mm plate with four M4 holes"
+"60 x 40 mm plate with four M4 holes and rounded corners"
         │
-        ▼  LLM (Claude) writes a Part Studio script: FeatureScript calling standard features + #variables
+        ▼  Claude writes a Part Studio script: FeatureScript calling Onshape's standard features + #variables
         │
-        ▼  offline, 0 API calls
-   checker:        syntax, units, feature/parameter/enum ids vs. Onshape's feature specs
-   local builder:  geometry, volume, hole sizes, 4-view preview  ──► LLM review / your feedback
-   cost estimate:  calls needed to push
+        ▼  checked and test-built on your computer first (no API calls)
         │
-   ┌────┴─────────────────────────┐
-   ▼                              ▼
-paste export (0 calls)       native feature tree via the REST API
-one custom feature with      1 call per feature, incremental updates,
-a parameter dialog           1 call to confirm Onshape's volume = local
+        ▼  sent to Onshape feature by feature  ──►  an editable feature tree in a new Part Studio
 ```
 
-<p align="center"><img src="docs/images/local_preview.png" width="420" alt="local 4-view preview"><br>
-<em>Local preview the LLM reviews before anything is sent to Onshape</em></p>
+The local test build is a supporting tool, not the point: an OpenCascade engine that reproduces Onshape's
+feature behaviour, so mistakes are caught and fixed before they cost API calls, and the result can be checked
+(sizes, holes, volume, a preview image). Onshape's education plans allow 2,500 API calls per year, so fsgen
+shows the cost before each push (a typical part: about 15–30 calls) and re-sends only what changed.
+
+If you don't need to edit the sketches later, there is a **0-call alternative**: the same part as one
+parametric custom feature that you paste into a Feature Studio and adjust through its parameter dialog.
 
 ### Example: a 3D-printable screwdriver with threads
 
 <p align="center"><img src="docs/images/neo_screwdriver.png" width="420" alt="3D-printable screwdriver: handle, collet nut and end cap"></p>
 
-A handle for the NEO Tools 04-227 precision bits, designed in a chat from a description with the product's
-dimensions looked up online: three parts laid out in print orientation, an M12 × 2 thread with a collet nut
-that clamps the bit, and a snap-on end cap. The thread and fits were checked locally (the nut screws on without
-overlap). Script: [examples/native/generated/neo_screwdriver.fs](examples/native/generated/neo_screwdriver.fs).
+A handle for the NEO Tools 04-227 precision bits, designed in a chat with the product's dimensions looked up
+online: three parts laid out for printing, an M12 × 2 thread with a collet nut that clamps the bit, and a
+snap-on end cap (local preview; the fit of the thread was checked locally). Script:
+[examples/native/generated/neo_screwdriver.fs](examples/native/generated/neo_screwdriver.fs).
 
 ## Quick start
 
@@ -86,7 +90,7 @@ cp .env.example .env          # add your Onshape API keys
 
 To paste: create a Feature Studio in Onshape, paste the file, and insert the feature in a Part Studio.
 
-## Two ways into Onshape
+## Two ways into Onshape (native tree is the main one)
 
 | | **Paste** a custom feature | **Push** a native tree |
 |---|---|---|
