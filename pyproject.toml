@@ -1,0 +1,19 @@
+[project]
+name = "fsgen"
+version = "0.1.0"
+description = "Prompt -> Onshape FeatureScript -> local OpenCascade preview and Onshape export"
+requires-python = ">=3.10"
+dependencies = ["build123d>=0.9", "requests", "python-dotenv", "anthropic", "matplotlib", "numpy"]
+
+[project.scripts]
+fsgen = "fsgen.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["fsgen*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

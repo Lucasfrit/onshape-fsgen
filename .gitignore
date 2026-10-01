@@ -1,0 +1,17 @@
+.env
+.venv/
+__pycache__/
+out/
+*.pyc
+.fsgen_workspace.json
+ref/
+scratch_*.py
+# local state, logs and personal work (never publish)
+.fsgen_native.json
+.fsgen_api_ledger.jsonl
+parts/
+*.egg-info/
+.pytest_cache/
+.claude/settings.local.json
+.DS_Store
+onshape_project_context.md

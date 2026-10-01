@@ -1,0 +1,58 @@
+cff-version: 1.2.0
+message: "If you use featuretree in research or a product, please cite it."
+type: software
+title: "featuretree: round-trip editable feature trees from a neutral IR, for AI- and code-generated CAD"
+authors:
+  - family-names: Newcome
+    given-names: Daniel
+    orcid: "https://orcid.org/0009-0000-6015-8713"
+version: "0.1.0"
+doi: "10.5281/zenodo.22848721"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.22848721"
+    description: "Concept DOI - resolves to all versions"
+  - type: doi
+    value: "10.5281/zenodo.22848722"
+    description: "Version 0.1.0"
+repository-code: "https://github.com/punkfab/featuretree"
+url: "https://github.com/punkfab/featuretree"
+license: MIT
+date-released: "2026-09-19"
+abstract: >-
+  featuretree authors a CAD design once as a small neutral feature IR (named, ordered
+  operations; edges selected by query, never by kernel id) and emits it as a native, editable
+  parametric feature tree in FreeCAD and Onshape, and as a build123d solid, from one source.
+  Human edits made in the CAD GUI read back by feature name, so they survive regeneration and
+  flow back to the code. A STEP->IR recogniser recovers a parametric tree from a frozen B-rep
+  (extrude/revolve in any orientation, multi-axis pockets and cross-axis holes) and
+  self-verifies every recovery by re-emitting the tree and comparing volume and bounding box
+  to the original, reporting VERIFIED or honestly PARTIAL rather than a silently wrong guess.
+  It is the editable round-trip layer that code- and LLM-generated CAD otherwise lacks.
+  First published 2026-06-26; recognition component from 2026-07-10. The methods are not
+  novel (see paper/prior-art/FINDINGS.md) -- the contribution is an open, callable,
+  verification-gated implementation for CAD systems that have none.
+keywords:
+  - CAD
+  - parametric modeling
+  - feature tree
+  - feature recognition
+  - round-trip editing
+  - FreeCAD
+  - Onshape
+  - build123d
+  - AI-generated CAD
+  - topological naming
+
+preferred-citation:
+  type: article
+  title: "featuretree: Verified Recovery of Editable CAD Feature Trees from STEP, for Open CAD Systems"
+  authors:
+    - family-names: Newcome
+      given-names: Daniel
+      orcid: "https://orcid.org/0009-0000-6015-8713"
+  year: 2026
+  month: 9
+  doi: "10.5281/zenodo.22848792"
+  url: "https://doi.org/10.5281/zenodo.22848792"
+  notes: "Preprint archived on Zenodo."

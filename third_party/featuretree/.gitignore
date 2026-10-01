@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Generated CAD artifacts (regenerate with: python3 gen.py --sample plate,
+# or python3 step_recognize.py <file>.stp --fcstd out/demo/<name>.FCStd)
+out/**/*.FCStd
+out/**/*.stl
+out/**/*.FCBak
+out/*.FCStd
+out/*.stl
+out/*.FCBak
+
+# Fusion / SolidWorks scripts, their STEP exports and reports (regenerate with script_emit.py)
+out/cad_scripts/
+
+paper/figures/onshape/*.step
+paper/figures/freecad/*.FCStd
+paper/figures/freecad/*.step
+paper/figures/freecad/*.stl
+paper/figures/freecad/*.ir.json
+paper/ir/*.aux
+paper/ir/*.log
+paper/ir/*.out
+paper/ir/*.bbl
+paper/ir/*.blg
+paper/figures/freecad/*.FCBak

@@ -1,0 +1,42 @@
+{
+  "title": "featuretree: verified recovery of editable CAD feature trees from STEP, for open CAD systems",
+  "upload_type": "software",
+  "version": "0.1.0",
+  "license": "MIT",
+  "creators": [
+    {
+      "name": "Newcome, Daniel",
+      "orcid": "0009-0000-6015-8713",
+      "affiliation": "punkfab"
+    }
+  ],
+  "description": "<p><strong>featuretree</strong> recovers an editable parametric feature tree from a history-less B-rep solid (a STEP file), gates every recovery by re-executing the recovered tree and comparing the result against the input, and emits the result as a native editable feature tree in FreeCAD (PartDesign) and Onshape, and as a build123d solid &mdash; all from one neutral feature intermediate representation. Geometry is referenced symbolically, by stable feature name and by queries re-resolved against live geometry, never by persisted kernel entity identifiers, so human edits made in a CAD GUI can be read back by name and survive regeneration.</p><p><strong>Evaluation.</strong> On the eleven-part NIST MBE PMI conformance corpus (AP203 geometry-only variants) it returns VERIFIED for 3 parts, PARTIAL for 5, and explicitly refuses 3, producing no silently incorrect trees. All three VERIFIED recoveries exceed 99.68% IoU against the input after rotation-aware co-registration.</p><p><strong>Scope of the claim.</strong> The methods are not novel. Verification-gated feature recovery is anticipated by Gupta &amp; Nau (Computer-Aided Design, 1995), ships in SolidWorks FeatureWorks (from approximately 1998) and PTC Creo's Feature Recognition Tool (from approximately 2007), and is disclosed in patents filed in 2000 that have since expired. A full prior-art scan is included in the repository at paper/prior-art/FINDINGS.md. What this release contributes is availability &mdash; an open, MIT-licensed, callable implementation for CAD systems that have no import-time feature recognition at all &mdash; together with a measured evaluation and an honest account of where it fails, including a negative result showing that a scalar volume acceptance test lets over-cut and uncut material cancel.</p><p>First published 2026-06-26; the recognition component dates from 2026-07-10.</p>",
+  "keywords": [
+    "CAD",
+    "parametric modeling",
+    "feature tree",
+    "feature recognition",
+    "reverse engineering",
+    "round-trip editing",
+    "boundary representation",
+    "STEP",
+    "FreeCAD",
+    "Onshape",
+    "build123d",
+    "topological naming",
+    "open source"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.22848792",
+      "relation": "isSupplementedBy",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "https://github.com/punkfab/featuretree",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ],
+  "access_right": "open"
+}

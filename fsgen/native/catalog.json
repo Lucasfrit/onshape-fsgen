@@ -1,0 +1,85 @@
+{
+  "assignVariable": {
+    "status": "verified",
+    "example": "examples/native/plate.fs",
+    "notes": [
+      "variable(context, name, value): by default all variables go into one Variable Studio (3 calls total); FSGEN_VARIABLES=tree makes Variable features in the tree (1 call each)."
+    ]
+  },
+  "cPlane": {
+    "status": "verified",
+    "example": "examples/native/enclosure.fs",
+    "notes": [
+      "Offset plane: entities = a plane/face, offset = distance (cplaneType is sent automatically)."
+    ]
+  },
+  "chamfer": {
+    "status": "verified",
+    "example": "examples/native/flange.fs",
+    "notes": [
+      "chamferType ChamferType.EQUAL_OFFSETS + width."
+    ]
+  },
+  "circularPattern": {
+    "status": "verified",
+    "example": "examples/native/flange.fs",
+    "notes": [
+      "patternType FEATURE + instanceFunction [feature ids]; axis can be a construction line."
+    ]
+  },
+  "extrude": {
+    "status": "verified",
+    "example": "examples/native/plate.fs",
+    "notes": [
+      "A REMOVE extrude pointing away from the part finishes with INFO and cuts nothing; check the sketch normal.",
+      "Set defaultScope false + booleanScope to the part for ADD/REMOVE."
+    ]
+  },
+  "fillet": {
+    "status": "verified",
+    "example": "examples/native/plate.fs",
+    "notes": [
+      "Select edges geometrically: qParallelEdges(edges, vector), qContainsPoint(edges, point on edge)."
+    ]
+  },
+  "linearPattern": {
+    "status": "learned",
+    "example": "linearPattern(context, id + \"Vent slot pattern\", {\n            \"patternType\" : PatternType.FEATURE,\n            \"instanceFunction\" : [id + \"Vent slot\"],\n            \"directionOne\" : qCreatedBy(makeId(\"Right\"), EntityType.FACE),   // +X\n            \"distance\" : #slotPitch,\n            \"instanceCount\" : #slotCount });",
+    "learnedFrom": "Fan adapter: a 100 x 60 x 3 mm base plate with a row of 6 vent slots (4 mm wide, 40 mm long, 12 mm apart, rounded ends) on the left half, and on the right half a solid loft rising from a 40 x 40 mm square on the plate top to a 30 mm diameter circle 25 mm above the plate. Four 3.4 mm mounting holes, 5 mm from each corner.",
+    "date": "2026-10-01"
+  },
+  "loft": {
+    "status": "learned",
+    "example": "loft(context, id + \"Transition loft\", {\n            \"operationType\" : NewBodyOperationType.ADD,\n            \"sheetProfilesArray\" : [\n                { \"sheetProfileEntities\" : qSketchRegion(id + \"Loft base sketch\") },\n                { \"sheetProfileEntities\" : qSketchRegion(id + \"Loft top sketch\") }\n            ],\n            \"defaultScope\" : false,\n            \"booleanScope\" : qCreatedBy(id + \"Base plate\", EntityType.BODY) });",
+    "learnedFrom": "Fan adapter: a 100 x 60 x 3 mm base plate with a row of 6 vent slots (4 mm wide, 40 mm long, 12 mm apart, rounded ends) on the left half, and on the right half a solid loft rising from a 40 x 40 mm square on the plate top to a 30 mm diameter circle 25 mm above the plate. Four 3.4 mm mounting holes, 5 mm from each corner.",
+    "date": "2026-10-01"
+  },
+  "mirror": {
+    "status": "verified",
+    "example": "examples/native/plate.fs",
+    "notes": [
+      "patternType FEATURE + instanceFunction; mirrorPlane = a default plane face."
+    ]
+  },
+  "newSketch": {
+    "status": "verified",
+    "example": "examples/native/plate.fs",
+    "notes": [
+      "Default planes: Top/Front/Right; constraints and dimensions are generated automatically."
+    ]
+  },
+  "revolve": {
+    "status": "verified",
+    "example": "examples/native/flange.fs",
+    "notes": [
+      "Axis: a construction line in the profile sketch via sketchEntityQuery(id + \"Sketch\", EntityType.EDGE, \"axis\")."
+    ]
+  },
+  "shell": {
+    "status": "verified",
+    "example": "examples/native/enclosure.fs",
+    "notes": [
+      "Positive thickness hollows inward; entities = faces to remove."
+    ]
+  }
+}
