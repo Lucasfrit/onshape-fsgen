@@ -77,3 +77,21 @@ def test_partial_build_is_flagged_to_the_reviewer():
     assert unbuilt == ['"Skin" (thicken)']
     prompt = review_prompt("a plate", THICKEN, loc.report(), unbuilt)
     assert "NOT built locally" in prompt and '"Skin" (thicken)' in prompt
+
+
+def test_any_cli_llm_can_be_the_designer(run, tmp_path, monkeypatch):
+    """--backend command: a stand-in 'LLM' CLI (a small Python script) answers via stdin/stdout."""
+    import sys
+    fake = tmp_path / "fake_llm.py"
+    fake.write_text(
+        "import sys\n"
+        "prompt = sys.stdin.read()\n"
+        "assert 'Part Studio script' in prompt  # the spec is sent along\n"
+        f"plate = {PLATE!r}\n"
+        "if 'Review' in prompt or 'It builds locally' in prompt:\n"
+        "    print('LGTM')\n"
+        "else:\n"
+        "    print('Assumptions:\\n- none\\n\\n```featurescript\\n' + plate + '\\n```')\n")
+    res = gen.generate_native("a plate", tmp_path / "out2", name="Plate", paste=True,
+                              llm_command=f"{sys.executable} {fake}")
+    assert res["ok"] and res["verified"] and res["api_calls"] == 0

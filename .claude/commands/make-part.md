@@ -5,7 +5,7 @@ argument-hint: <part description>
 
 Make this part: $ARGUMENTS
 
-Follow the "Making a part in chat" workflow in CLAUDE.md:
+Follow the "Making a part" workflow in AGENTS.md:
 
 1. Run `.venv/bin/fsgen spec` and follow it (dialect, the user's rules, feature catalog, examples).
 2. If the request names a real product, look up its dimensions online first. List your assumptions (every

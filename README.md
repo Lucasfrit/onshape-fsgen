@@ -53,7 +53,8 @@ rounded corners, bosses on an offset plane, cable hole) · flange (revolve, bolt
 ```
 "60 x 40 mm plate with four M4 holes and rounded corners"
         │
-        ▼  Claude writes a Part Studio script: FeatureScript calling Onshape's standard features + #variables
+        ▼  an AI (Claude by default, or another LLM) writes a Part Studio script:
+        │  FeatureScript calling Onshape's standard features + #variables
         │
         ▼  checked and test-built on your computer first (no API calls)
         │
@@ -79,8 +80,8 @@ snap-on end cap (local preview; the fit of the thread was checked locally). Scri
 
 ## Quick start
 
-Requirements: Python 3.12, an Onshape account with API keys (*My Account → Developer → API keys*), and
-[Claude Code](https://claude.com/claude-code) logged in (or an `ANTHROPIC_API_KEY`).
+Requirements: Python 3.12, an Onshape account with API keys (*My Account → Developer → API keys*), and an AI to
+do the designing (see [Which AI?](#which-ai) — Claude works out of the box).
 
 ```bash
 git clone https://github.com/Lucasfrit/onshape-fsgen && cd onshape-fsgen
@@ -89,11 +90,14 @@ cp .env.example .env          # add your Onshape API keys
 .venv/bin/pytest              # offline test suite, no API calls
 ```
 
-**In a Claude Code chat** (you steer between iterations):
+**In a chat with your coding assistant** (you steer between iterations). In Claude Code:
 
 ```
 /make-part a 60 x 40 x 5 mm mounting plate with four 4.5 mm holes 6 mm from the corners and 3 mm corner fillets
 ```
+
+Other assistants (Codex, Cursor, Copilot, Gemini CLI, …) read the same workflow from
+[AGENTS.md](AGENTS.md): ask them to "make a part: …" in this folder.
 
 **Or with one command:**
 
@@ -103,6 +107,22 @@ cp .env.example .env          # add your Onshape API keys
 ```
 
 To paste: create a Feature Studio in Onshape, paste the file, and insert the feature in a Part Studio.
+
+## Which AI?
+
+fsgen is not tied to one model: the AI only has to write a text file (the Part Studio script); checking,
+building and talking to Onshape is done by fsgen.
+
+| how you work | AI | setup |
+|---|---|---|
+| chat with a coding assistant | Claude Code (`/make-part`), Codex, Cursor, Copilot, Gemini CLI, … | none: they follow [AGENTS.md](AGENTS.md) and run `fsgen spec` / `fsgen studio build` / `paste` / `push` |
+| one command, `fsgen generate` | Claude (default) | logged-in `claude` CLI, or `ANTHROPIC_API_KEY` |
+| one command, `fsgen generate` | any LLM with a command-line tool: local models via Ollama, Gemini CLI, `llm`, … | `FSGEN_LLM_COMMAND="ollama run qwen2.5-coder:32b"` (prompt on stdin, answer on stdout) |
+| by hand | you | write the script yourself; `fsgen studio build` checks it |
+
+So far it has been used and tested with Claude; other models should work through the same interface, but how
+well they write FeatureScript is untested. Results improve with models that can read the preview image and
+search the web.
 
 ## Two ways into Onshape (native tree is the main one)
 
@@ -128,7 +148,7 @@ Also: **STEP → editable tree** (`fsgen recognize part.step`) using
 
 | command | what it does | Onshape calls |
 |---|---|---|
-| `fsgen generate "…" [--paste]` | prompt → script → local build/review → paste file or native tree | 0 / ≈ features + 5 |
+| `fsgen generate "…" [--paste] [--llm-command "…"]` | prompt → script → local build/review → paste file or native tree | 0 / ≈ features + 5 |
 | `fsgen studio build file.fs` | local build: STEP, STL, preview, cost estimate | 0 |
 | `fsgen studio paste file.fs` | custom feature to paste (clipboard) | 0 |
 | `fsgen studio push file.fs` | create / update the native tree incrementally | as estimated |

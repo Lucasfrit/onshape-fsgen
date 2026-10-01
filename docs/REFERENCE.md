@@ -65,9 +65,16 @@ references stay at their Onshape defaults. `fsgen features --refresh` re-downloa
 
 ## LLM backend
 
-: `ANTHROPIC_API_KEY` (or an `ant auth login` profile) uses the Anthropic SDK with
-`claude-opus-5-5` (streaming, adaptive thinking, prompt caching, server-side refusal fallback). Otherwise it
-falls back to the logged-in `claude` CLI (`claude -p`, no API key needed; no image review).
+`fsgen generate` picks the LLM in this order:
+
+1. `FSGEN_LLM_COMMAND` / `--backend command --llm-command "…"`: any LLM with a command-line tool (prompt on
+   stdin, answer on stdout), e.g. `ollama run qwen2.5-coder:32b`, `gemini -p`, `llm -m <model>`.
+2. `ANTHROPIC_API_KEY` (or an `ant auth login` profile): the Anthropic SDK with `claude-opus-5-5` (streaming,
+   adaptive thinking, prompt caching, server-side refusal fallback); the review sees the preview image.
+3. Otherwise the logged-in `claude` CLI (`claude -p`, no API key needed); it may use web search
+   (`--no-web` to turn off) and reads the preview image with its Read tool.
+
+In a chat, any coding assistant can be the designer instead: see `AGENTS.md`.
 
 ## Commands
 

@@ -245,3 +245,10 @@ LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists;
   loft, patterns, mirrors and fillets as ordinary Onshape features (one part each).
 - Variable Studio mode confirmed in the UI: the pillow block's 10 variables appear in "Pillow block variables",
   referenced by the Part Studio, whose tree then contains only sketches and features (13 features).
+
+## Not tied to Claude (2026-10-01)
+
+- The fsgen tools are model-agnostic: the AI only writes the Part Studio script. Added a generic backend for
+  `fsgen generate` (`FSGEN_LLM_COMMAND`, prompt on stdin / answer on stdout: Ollama, Gemini CLI, `llm`, …),
+  tested with a stand-in CLI in `tests/test_generate_loop.py`, and `AGENTS.md` with the shared workflow for
+  other coding assistants (Codex, Cursor, Copilot, Gemini CLI). Only Claude has actually been used so far.

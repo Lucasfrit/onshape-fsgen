@@ -63,6 +63,7 @@ def cmd_generate(args):
         res = generate_native(args.request, Path(args.out) if args.out else None, name=args.name, paste=args.paste,
                               backend=args.backend, model=args.model, max_fixes=args.max_fixes,
                               review_rounds=0 if args.no_review else args.reviews, web=not args.no_web,
+                              llm_command=args.llm_command,
                               export_formats=tuple(f for f in (args.export or "").split(",") if f),
                               budget=args.budget)
         print(json.dumps({k: v for k, v in res.items() if k != "history"}, indent=2, default=str))
@@ -342,7 +343,10 @@ def main(argv=None):
     g = sub.add_parser("generate", help="prompt -> FeatureScript -> geometry")
     g.add_argument("request")
     g.add_argument("--cloud", action="store_true", help="also push to Onshape, compare and export")
-    g.add_argument("--backend", default="auto", choices=["auto", "anthropic", "claude-cli"])
+    g.add_argument("--backend", default="auto", choices=["auto", "anthropic", "claude-cli", "command"],
+                   help="auto: FSGEN_LLM_COMMAND if set, else the Anthropic API if a key is set, else the claude CLI")
+    g.add_argument("--llm-command", help="any LLM CLI that reads stdin and prints the answer, e.g. "
+                                         "'ollama run qwen2.5-coder:32b' or 'gemini -p' (also FSGEN_LLM_COMMAND)")
     g.add_argument("--model")
     g.add_argument("--max-fixes", type=int, default=4)
     g.add_argument("--no-review", action="store_true")

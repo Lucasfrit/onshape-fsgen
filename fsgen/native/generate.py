@@ -125,8 +125,8 @@ def _existing_state(name):
 def generate_native(request: str, out_dir: Path | None = None, name: str | None = None, backend: str = "auto",
                     model: str | None = None, max_fixes: int = 5, review_rounds: int = 2,
                     export_formats: tuple = (), budget: int | None = None, paste: bool = False,
-                    web: bool = True) -> dict:
-    llm = make_llm(backend, model, web=web)
+                    web: bool = True, llm_command: str | None = None) -> dict:
+    llm = make_llm(backend, model, web=web, command=llm_command)
     label = re.sub(r"[^a-z0-9]+", "-", (name or studio_name(request)).lower()).strip("-") or "part"
     out_dir = out_dir or Path("out") / "native" / f"{time.strftime('%Y%m%d-%H%M%S')}-{label}"
     out_dir.mkdir(parents=True, exist_ok=True)
