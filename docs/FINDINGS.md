@@ -243,3 +243,5 @@ LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists;
   `###name = #value` name template + hidden `value` parameter fix.
 - The fan adapter, enclosure, NEMA 17 mount and flange trees show readable feature names, sketches, extrudes,
   loft, patterns, mirrors and fillets as ordinary Onshape features (one part each).
+- Variable Studio mode confirmed in the UI: the pillow block's 10 variables appear in "Pillow block variables",
+  referenced by the Part Studio, whose tree then contains only sketches and features (13 features).

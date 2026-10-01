@@ -5,23 +5,22 @@ exactly as if you had modelled it yourself, and every one of them editable after
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Python 3.12](https://img.shields.io/badge/python-3.12-blue) ![Status: experimental](https://img.shields.io/badge/status-experimental-orange) ![Onshape](https://img.shields.io/badge/CAD-Onshape-0b6fcf)
 
-| | |
-|:---:|:---:|
-| ![Fan adapter feature tree](docs/images/tree_fan_adapter.png) | ![NEMA 17 mount feature tree](docs/images/tree_nema17_mount.png) |
-| **Fan adapter**, from one prompt: variables, sketches, extrude, loft, linear pattern, mirrors | **NEMA 17 motor mount**, from one prompt: 27 features, slots, mirrored screw holes, inside fillet |
-| ![Enclosure feature tree](docs/images/tree_enclosure.png) | ![Flange feature tree](docs/images/tree_flange.png) |
-| **Enclosure**: shell, rounded corners, bosses on an offset plane, cable hole | **Flange**: revolved profile, bolt-hole circular pattern, rim chamfer |
-
-*Screenshots from Onshape. Nothing here is imported geometry: each part is an ordinary feature tree that fsgen
-created feature by feature through the Onshape API.*
+<p align="center">
+  <img src="docs/images/tree_pillow_block.png" width="380" alt="Pillow block feature tree in Onshape">
+  &nbsp;
+  <img src="docs/images/tree_fan_adapter.png" width="380" alt="Fan adapter feature tree in Onshape">
+</p>
+<p align="center"><em>Generated from one-line descriptions: a pillow block and a fan adapter, as ordinary
+Onshape feature trees (screenshots from Onshape). Nothing is imported geometry; fsgen created every sketch and
+feature through the Onshape API.</em></p>
 
 ## What makes it different
 
 LLM-generated 3D models are easy to find, but they arrive as a mesh, a STEP file or one opaque block of code:
 geometry you can look at but not really edit. fsgen builds the part **the way a person would in Onshape**:
 
-- **Variables** at the top of the tree (`#slotLength = 40 mm`, `#boltCount = 6`), shown and edited like any
-  Onshape variable.
+- **Variables** for every key dimension, either in a Variable Studio (default, shown below) or at the top of the
+  tree (`#slotLength = 40 mm`, `#boltCount = 6`), edited like any Onshape variable.
 - **Sketches with constraints and dimensions**, driven by those variables: rectangles, circles, slots and
   profiles are dimensioned with live expressions such as `#width / 2 - #holeInset`. Change a variable and the
   sketch, and everything built on it, updates.
@@ -33,6 +32,21 @@ geometry you can look at but not really edit. fsgen builds the part **the way a 
 
 All 98 Onshape standard features can be used; parameters are checked against Onshape's own feature
 definitions before anything is sent.
+
+<p align="center"><img src="docs/images/variable_studio.png" width="460" alt="Variable Studio with the pillow block's variables"><br>
+<em>The pillow block's variables in its Variable Studio: change a value and the part updates.</em></p>
+
+<details>
+<summary><b>More generated parts</b> (NEMA 17 motor mount, enclosure, flange)</summary>
+<br>
+<p align="center">
+  <img src="docs/images/tree_nema17_mount.png" width="270" alt="NEMA 17 motor mount feature tree">
+  <img src="docs/images/tree_enclosure.png" width="270" alt="Enclosure feature tree">
+  <img src="docs/images/tree_flange.png" width="270" alt="Flange feature tree">
+</p>
+<p align="center"><em>NEMA 17 mount (27 features, slots, mirrored screw holes, inside fillet) · enclosure (shell,
+rounded corners, bosses on an offset plane, cable hole) · flange (revolve, bolt-hole circular pattern, chamfer)</em></p>
+</details>
 
 ## How it works
 
