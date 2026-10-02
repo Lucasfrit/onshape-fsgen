@@ -89,12 +89,15 @@ snap-on end cap (local preview; the fit of the thread was checked locally). Scri
 ### How is this different from the Onshape MCP servers?
 
 Onshape's [FeatureScript MCP server](https://www.onshape.com/en/blog/get-started-featurescript-mcp-server)
-writes custom features. Community MCP servers (e.g. [onshape-mcp](https://github.com/hedless/onshape-mcp))
-let an AI create native features one tool call at a time and check each one in Onshape, so every attempt and
-correction costs API calls. fsgen writes the whole part first, checks and builds it locally, and then pushes
-it with a known number of calls. The limit of this approach: features the local builder can't build yet are
-only checked against Onshape's feature definitions offline; their geometry is checked in Onshape after the
-push (see [What it can build today](#what-it-can-build-today)).
+has an AI write custom features, typically tools with their own dialog that work on geometry you select.
+fsgen's paste option also produces a custom feature, but one that builds a whole part from its parameters
+(lengths, angles, counts), checked locally and with no API calls. Its main output, a native feature tree, is
+something the MCP server doesn't make. Community MCP servers (e.g.
+[onshape-mcp](https://github.com/hedless/onshape-mcp)) do create native features, one tool call at a time,
+checking each one in Onshape, so every attempt and correction costs API calls. fsgen writes the whole part
+first, checks and builds it locally, and then pushes it with a known number of calls. The limit of this
+approach: features the local builder can't build yet are only checked against Onshape's feature definitions
+offline; their geometry is checked in Onshape after the push (see [What it can build today](#what-it-can-build-today)).
 
 ## Quick start
 

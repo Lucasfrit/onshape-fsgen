@@ -259,3 +259,19 @@ LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists;
   requires `<3.15`, so 3.14 is the newest usable version. On Python 3.14.3 (Homebrew) all 71 tests pass and the
   CLI gives identical results; only DeprecationWarnings from `lib3mf` (ctypes `_pack_`, slated to error in 3.19).
   `requires-python` is now `>=3.11,<3.15`. Python 3.15 will need new OCP wheels first.
+
+## Seeing the official API usage without spending calls (2026-10-02)
+
+- Correction to "Using the MCP server in the workflow" above: the MCP tool is not the only way. Onshape's help
+  for *My Account → Developer* has a "View your API usage" section with an *Annual API limits for* dropdown
+  ([help page](https://cad.onshape.com/help/Content/Plans/my_account_developer.htm)); admins get e-mails at 25,
+  50, 75 and 100 % of the limit. Browser use doesn't count, so this is a free way to read the official number
+  for `fsgen usage --set-official`. (help page; not yet checked in the UI)
+- A forum user reports an undocumented endpoint, `GET /api/v13/metrics/api/summary?startDate=…`, that returns
+  usage for personal API keys when opened in a logged-in browser
+  ([forum](https://forum.onshape.com/discussion/30053/viewing-personal-api-usage)). Not in the public OpenAPI
+  spec. Opened in the browser it should be free; called from fsgen with API keys it would itself count.
+  (unverified)
+- If you belong to a company or classroom plan, usage is tracked at that level, and keys created under
+  *My Account → Developer* may not appear in the company's usage table. (search summary of the help/forum;
+  unverified)
