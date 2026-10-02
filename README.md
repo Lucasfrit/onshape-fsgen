@@ -6,12 +6,10 @@ exactly as if you had modelled it yourself, and every one of them editable after
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Python 3.11–3.14](https://img.shields.io/badge/python-3.11%E2%80%933.14-blue) ![Status: experimental](https://img.shields.io/badge/status-experimental-orange) ![Onshape](https://img.shields.io/badge/CAD-Onshape-0b6fcf)
 
 <p align="center">
-  <img src="docs/images/tree_pillow_block.png" width="380" alt="Pillow block feature tree in Onshape">
-  &nbsp;
-  <img src="docs/images/tree_fan_adapter.png" width="380" alt="Fan adapter feature tree in Onshape">
+  <img src="docs/images/fan_adapter_build.gif" width="760" alt="Fan adapter in Onshape, stepped through its feature tree with the rollback bar">
 </p>
-<p align="center"><em>Generated from short written descriptions: a pillow block and a fan adapter, as ordinary
-Onshape feature trees (screenshots from Onshape). Nothing is imported geometry; fsgen created every sketch and
+<p align="center"><em>A fan adapter generated from a short written description, shown in Onshape by moving the
+rollback bar down its feature tree. Nothing is imported geometry; fsgen created every variable, sketch and
 feature through the Onshape API.</em></p>
 
 **See for yourself:** the example parts are in a [public Onshape document](https://cad.onshape.com/documents/1fb090da32717a692a4130a3/w/dd197b61b6df7a8ada3240df/e/1bf2dc907f8a5ed598df9b97): open it with any Onshape
@@ -41,14 +39,18 @@ definitions before anything is sent.
 <em>The pillow block's variables in its Variable Studio: change a value and the part updates.</em></p>
 
 <details>
-<summary><b>More parts built with fsgen</b> (NEMA 17 motor mount, enclosure, flange)</summary>
+<summary><b>More parts built with fsgen</b> (pillow block, NEMA 17 motor mount, enclosure, flange)</summary>
 <br>
 <p align="center">
-  <img src="docs/images/tree_nema17_mount.png" width="270" alt="NEMA 17 motor mount feature tree">
-  <img src="docs/images/tree_enclosure.png" width="270" alt="Enclosure feature tree">
-  <img src="docs/images/tree_flange.png" width="270" alt="Flange feature tree">
+  <img src="docs/images/tree_pillow_block.png" width="380" alt="Pillow block feature tree">
+  <img src="docs/images/tree_nema17_mount.png" width="380" alt="NEMA 17 motor mount feature tree">
 </p>
-<p align="center"><em>NEMA 17 mount, generated from a description (23 features including its 12 variables;
+<p align="center">
+  <img src="docs/images/tree_enclosure.png" width="380" alt="Enclosure feature tree">
+  <img src="docs/images/tree_flange.png" width="380" alt="Flange feature tree">
+</p>
+<p align="center"><em>Pillow block, generated from a description (9 features, variables in a Variable Studio) ·
+NEMA 17 mount, generated from a description (23 features including its 12 variables;
 slots, mirrored screw holes, inside fillet) · enclosure (shell, rounded corners, bosses on an offset plane, cable
 hole) and flange (revolve, bolt-hole circular pattern, chamfer): hand-written reference scripts that serve as the
 AI's examples, built in Onshape by fsgen</em></p>
