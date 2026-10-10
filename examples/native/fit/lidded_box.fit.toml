@@ -1,0 +1,28 @@
+# `fsgen studio fit examples/native/fit/lidded_box.fs`: the lid goes on the box (0 Onshape calls).
+# Assembly frame = the box's print layout. All lengths in mm, angles in degrees.
+
+[parts.box]
+at = [0, 0, 1]            # in the floor
+
+[parts.lid]
+at = [40, 0, 1]           # in the plate
+# turn it over (lip down) and set it on the box: plate on top (z 15..17), lip inside the opening
+place = [{ rotate = 180, axis = [1, 0, 0], origin = [40, 0, 0] }, { move = [-40, 0, 17] }]
+
+[components.card]         # something the box must hold
+box = { size = [20, 10, 5], center = [0, 0, 4.6] }
+
+[[motions]]
+name = "lift the lid off"
+moving = ["lid"]
+slide = [0, 0, 1]
+steps = [0.5, 2, 6]
+expect = "free"
+
+[[motions]]
+name = "push the lid sideways (the lip stops it)"
+moving = ["lid"]
+against = ["box"]
+slide = [1, 0, 0]
+steps = [0.1, 0.5, 2]
+expect = "blocked"

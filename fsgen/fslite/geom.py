@@ -177,7 +177,9 @@ class Ent:
             return False
         if self.kind == "BODY":
             return self.body is other.body
-        return self.shape.IsSame(other.shape)
+        # an extrude's end face reuses the sketch's edges (same TShape): in Onshape the sketch edge and the solid
+        # edge are different entities, so the owning body is part of the identity
+        return self.body is other.body and self.shape.IsSame(other.shape)
 
     def __repr__(self):
         return f"Ent({self.kind})"
@@ -561,24 +563,93 @@ def edge_direction(e):
     return np.array([d.X(), d.Y(), d.Z()])
 
 
-def fillet(body_shape, edges, radius):
-    mk = BRepFilletAPI_MakeFillet(body_shape)
+def _blend(make, body_shape, edges, size, what):
+    mk = make(body_shape)
     for e in edges:
-        mk.Add(radius, TopoDS.Edge(e))
+        mk.Add(size, TopoDS.Edge(e))
     mk.Build()
     if not mk.IsDone():
-        raise FSError("fillet failed (radius too large or edges not filletable)")
+        raise FSError(f"{what} failed (size too large or edges not {what}able)")
     return mk.Shape(), mk
+
+
+class _ScaledHistory:
+    """History of scale up -> operation -> scale down, mapping the original subshapes to the result.
+
+    The copies made by the two scale transforms are new TShapes, so unchanged subshapes are mapped as well. Whether a
+    subshape survived unchanged is decided by looking it up in the operation's result: OCCT's fillet/chamfer
+    IsDeleted() also answers True for subshapes it never touched."""
+
+    def __init__(self, up, op, down):
+        self.up, self.op, self.down = up, op, down
+        self._result = {}
+        for k in (TopAbs_FACE, TopAbs_EDGE, TopAbs_VERTEX):
+            for sub in subshapes(op.Shape(), k):
+                self._result.setdefault(hash(sub), []).append(sub)
+
+    def _image(self, s):
+        try:
+            return self.up.ModifiedShape(s)
+        except Exception:
+            return None
+
+    def _survives(self, s1) -> bool:
+        return any(x.IsSame(s1) for x in self._result.get(hash(s1), ()))
+
+    def Modified(self, s):
+        out = TopTools_ListOfShape()
+        s1 = self._image(s)
+        if s1 is None:
+            return out
+        try:
+            mods = list(self.op.Modified(s1))
+        except Exception:
+            mods = []
+        if not mods and self._survives(s1):
+            mods = [s1]
+        for m in mods:
+            try:
+                out.Append(self.down.ModifiedShape(m))
+            except Exception:
+                pass
+        return out
+
+    def IsDeleted(self, s):
+        s1 = self._image(s)
+        if s1 is None or self._survives(s1):
+            return False
+        try:
+            return not list(self.op.Modified(s1))
+        except Exception:
+            return True
+
+
+def _blend_robust(make, body_shape, edges, size, what):
+    """Fillet/chamfer; OCCT sometimes fails on a model in meters but succeeds on the same model in millimeters
+    (measured on a coil former: 0.8 mm chamfer), so retry once at 1000x scale."""
+    try:
+        return _blend(make, body_shape, edges, size, what)
+    except FSError as first:
+        k = 1000.0
+        t = gp_Trsf()
+        t.SetScaleFactor(k)
+        up = BRepBuilderAPI_Transform(body_shape, t, True)
+        try:
+            shape, mk = _blend(make, up.Shape(), [up.ModifiedShape(e) for e in edges], size * k, what)
+        except FSError:
+            raise first
+        t2 = gp_Trsf()
+        t2.SetScaleFactor(1 / k)
+        down = BRepBuilderAPI_Transform(shape, t2, True)
+        return down.Shape(), _ScaledHistory(up, mk, down)
+
+
+def fillet(body_shape, edges, radius):
+    return _blend_robust(BRepFilletAPI_MakeFillet, body_shape, edges, radius, "fillet")
 
 
 def chamfer(body_shape, edges, width):
-    mk = BRepFilletAPI_MakeChamfer(body_shape)
-    for e in edges:
-        mk.Add(width, TopoDS.Edge(e))
-    mk.Build()
-    if not mk.IsDone():
-        raise FSError("chamfer failed (width too large or edges not chamferable)")
-    return mk.Shape(), mk
+    return _blend_robust(BRepFilletAPI_MakeChamfer, body_shape, edges, width, "chamfer")
 
 
 def shell(body_shape, faces, thickness):

@@ -11,6 +11,9 @@ new features get learned.
 | LLM writes the Part Studio script | Claude (CLI or API) | 0 |
 | syntax, units, feature/parameter/enum check | local tracer | 0 |
 | geometry build, volume, hole sizes, render | local builder (OpenCascade) | 0 |
+| print check: overhangs flatter than 45° that are not on the bed | local (`fsgen studio check/build`) | 0 |
+| fit check: parts in their assembled position, real components (STEP), hinge/slide motions | local (`fsgen studio fit`) | 0 |
+| interactive 3D viewer (print layout + assembly) | local HTML (`fsgen studio view`) | 0 |
 | repairs from script/local errors | local loop | 0 |
 | review (model looks at the local 4-view render) | local loop | 0 |
 | cost estimate before pushing (shown as calls and % of what's left) | local, from the feature diff | 0 |
@@ -94,10 +97,26 @@ What it does:
   qLargest, qFarthestAlong, …)
 - Onshape behaviours: REMOVE that cuts nothing → warning (Onshape INFO); empty selections → error (Onshape
   ERROR); kernel-only failures → warning, not a false error
+- sketch edges and the part's edges are separate entities (an extrude's end face reuses the sketch's edges)
+- fillets/chamfers that OCCT refuses at meter scale are retried at millimeter scale (history kept)
 
 Not yet: UP_TO_* bounds, draft/taper, helix on a cylinder face (axisType SURFACE) or to an end point, sweep
 profile control/twist/scale, thicken, hole, sheet metal, surfaces, splines/ellipses in scripts, sketch
-constraints (dimensions only matter in Onshape), multi-part assemblies.
+constraints (dimensions only matter in Onshape), Onshape assemblies (multi-part fits are checked locally with
+`fsgen studio fit` instead).
+
+## Multi-part designs: fit check and viewer (`fsgen/native/fit.py`, `viewer.py`, `printcheck.py`)
+
+Printed parts are laid out in print orientation, so the preview alone cannot show whether they fit together.
+A fit file next to the script (`parts/<name>.fit.toml`) moves each part from the print layout into its assembled
+position (picked by a point inside it; move/rotate/rotation-matrix steps; mirrors are rejected because a printed
+part cannot be mirrored), adds components (the real thing as a STEP file, wires and pins as cylinders or boxes)
+and lists motions. `fsgen studio fit` reports the overlap of every pair when assembled and, for each motion, the
+overlap at each step: `free`, `snap` (small overlap near the closed position, gone later), `blocked` (still
+overlapping at the last step) or `collides`. An `expect` per motion turns it into a pass/fail check. Example:
+`examples/native/fit/lidded_box.fs` + `.fit.toml`. On a 7-part current clamp (hinge, latch, sleeves, covers,
+liner, the ferrite STEP, pin and wire) the check takes ~7 s.
+
 
 ## Two ways to get a part into Onshape
 
