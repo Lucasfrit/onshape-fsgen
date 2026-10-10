@@ -208,6 +208,7 @@ class Context:
     def __init__(self):
         self.bodies: list[Body] = []
         self.sketches: dict[Id, Sketch] = {}
+        self.caps: dict[tuple, tuple] = {}  # extrude feature id -> (point on start cap, point on end cap, direction)
         # per-body provenance: id(body) -> {hash(subshape): [(subshape, creator Id)]}
         self.tags: dict[int, dict[int, list[tuple[TopoDS_Shape, Id]]]] = {}
         self.log: list[str] = []

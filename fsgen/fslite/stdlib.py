@@ -266,6 +266,31 @@ class QAdjacent(Query):
         return dedupe(out)
 
 
+class QCap(Query):
+    """qCapEntity / qNonCapEntity: start/end faces of an extrude (planar, perpendicular to the extrude direction,
+    at its start/end), or its other faces. Robust against variable changes, unlike point-based queries."""
+
+    def __init__(self, fid, cap, etype, fname):
+        self.fid = need_id(fid, fname)
+        self.cap = cap  # START / END / EITHER, None: the non-cap faces
+        if etype is not None and _etype(etype, fname) != "FACE":
+            raise FSError(f"{fname}: FS-Lite supports EntityType.FACE only")
+
+    def eval(self, ctx):
+        faces = [e for e in QCreatedBy(self.fid).eval(ctx) if e.kind == "FACE"]
+        info = getattr(ctx, "caps", {}).get(tuple(self.fid))
+        if info is None:
+            return faces if self.cap is None else []
+        start, end, d = info
+
+        def on(e, pts):
+            fp = G.face_plane(e.shape)
+            return fp is not None and abs(abs(fp[1] @ d) - 1) < 1e-9 and any(abs((fp[0] - q) @ d) < 1e-8 for q in pts)
+        if self.cap is None:
+            return [e for e in faces if not on(e, (start, end))]
+        return [e for e in faces if on(e, {"START": (start,), "END": (end,), "EITHER": (start, end)}[self.cap])]
+
+
 class QSorted(Query):
     def __init__(self, q, key, pick):
         self.q, self.key, self.pick = q, key, pick
@@ -555,6 +580,25 @@ class StdLib:
 
         # ---------------- queries
         b["qCreatedBy"] = Builtin("qCreatedBy", lambda fid, et=None: QCreatedBy(fid, et))
+
+        @fn("qCapEntity")
+        def _qcap(fid, cap, et=None):
+            if isinstance(cap, bool):  # older signature qCapEntity(id, isStartCap)
+                cap = "START" if cap else "END"
+            else:
+                cap = enum_name(cap, "CapType", "qCapEntity", "capType")
+            return QCap(fid, cap, et, "qCapEntity")
+
+        b["qNonCapEntity"] = Builtin("qNonCapEntity", lambda fid, et=None: QCap(fid, None, et, "qNonCapEntity"))
+
+        @fn("qParallelPlanes")
+        def _qpp(q, ref, anti=False):
+            n = ref.normal if isinstance(ref, Plane) else as_dir3(ref, "qParallelPlanes normal")
+
+            def pred(c, e):
+                fp = G.face_plane(e.shape) if e.kind == "FACE" else None
+                return fp is not None and (abs(abs(fp[1] @ n) - 1) < 1e-9 if anti else abs(fp[1] @ n - 1) < 1e-9)
+            return QFilter(need_query(q, "qParallelPlanes", "query"), pred)
         b["qSketchRegion"] = Builtin("qSketchRegion", lambda fid, fil=False: QSketchRegion(fid, fil))
         b["sketchEntityQuery"] = Builtin("sketchEntityQuery", lambda fid, et, name: QSketchEntity(fid, et, name))
         b["qUnion"] = Builtin("qUnion", lambda qs: QUnion(qs))
@@ -943,6 +987,9 @@ class StdLib:
                 f0 = G.translate(f, -e0 * d) if e0 else f
                 shapes.append(G.make_prism(f0, (e1 + e0) * d))
             fused, _ = G.fuse_all(shapes)
+            c = G.props(faces[0], "area").CentreOfMass()
+            c = np.array([c.X(), c.Y(), c.Z()])
+            ctx.caps[tuple(oid)] = (c - e0 * d, c + min(e1, 1e3) * d, d)  # for qCapEntity
             _new_solids(ctx, oid, [fused], "opExtrude")
 
         @fn("opRevolve")

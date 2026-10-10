@@ -80,7 +80,7 @@ In a chat, any coding assistant can be the designer instead: see `AGENTS.md`.
 
 | command | what it does |
 |---|---|
-| `fsgen generate "<request>" [--name N] [--paste] [--reviews 2] [--no-web]` | **native**: prompt → script → Onshape feature tree → repair/review → `out/native/<run>/` (script, STEP/STL, Onshape renders, transcripts) |
+| `fsgen generate "<request>" [--name N] [--paste] [--reviews 2] [--no-web] [--document URL]` | **native**: prompt → script → Onshape feature tree → repair/review → `out/native/<run>/` (script, STEP/STL, Onshape renders, transcripts) |
 | `/make-part <description>` (in a Claude Code chat) | the chat designs `parts/<name>.fs` with the commands below; you steer, then paste or push |
 | `fsgen studio paste script.fs` | custom feature to paste into a Feature Studio (0 calls; clipboard + optional Dropbox copy) |
 | `fsgen recognize part.step` | STEP → editable Part Studio script via featuretree recognition (0 calls) |
@@ -90,7 +90,7 @@ In a chat, any coding assistant can be the designer instead: see `AGENTS.md`.
 | `fsgen studio build script.fs` | local build + STEP/STL/PNG in `out/<name>/` (0 calls) |
 | `fsgen studio fit script.fs [--fit F]` | assembled-position check from `script.fit.toml` (0 calls): parts moved from the print layout into place, components (STEP files, cylinders, boxes), overlaps, and motions (hinge turned, part slid off) with free/snap/blocked/collides verdicts; writes `out/<name>/<name>_assembled.step`. Format: `fsgen/native/fit.py`, example: `examples/native/fit/` |
 | `fsgen studio view script.fs [--fit F]` | interactive 3D viewer `out/<name>/<name>_view.html` (0 calls): print layout and, with a fit file, the assembly; hide parts, cut along X/Y/Z |
-| `fsgen studio push script.fs [--name N] [--fresh] [--export]` | build/update the Part Studio incrementally (only from the first changed feature) |
+| `fsgen studio push script.fs [--name N] [--fresh] [--export] [--document URL]` | build/update the Part Studio incrementally (only from the first changed feature); `--document` (or `FSGEN_DOCUMENT`) builds in your own Onshape document instead of `fsgen-workspace` |
 | `fsgen features [type] [--all] [--refresh]` | feature catalog / one feature's settable parameters |
 | `fsgen generate --custom "<request>" [--cloud]` | older single-custom-feature mode with local OCCT build/repair/review |
 | `fsgen run part.fs [-p name=value] [--png]` | local build + STEP/STL (+ 4-view PNG) |
@@ -119,7 +119,7 @@ See `fsgen/prompts.py` (the spec the LLM gets) for the full list. In short:
 - **Queries:** `qCreatedBy` with provenance tracked through booleans and fillets via OCCT history,
   `qSketchRegion`, `qUnion`/`qSubtraction`/`qIntersection`, `qOwnedByBody`, `qGeometry`, `qParallelEdges`,
   `qCoincidesWithPlane`, `qContainsPoint`, `qClosestTo`, `qFarthestAlong`, `qLargest`/`qSmallest`,
-  `qAdjacent`, `evVolume` / `evArea` / `evBox3d`, and more.
+  `qAdjacent`, `qCapEntity` / `qNonCapEntity`, `qParallelPlanes`, `evVolume` / `evArea` / `evBox3d`, and more.
 - **Not supported (yet):** sweep, helix, draft, UP_TO bounds, sketch constraints, `extrude()`-style
   std features, enums/type declarations, other Part Studios, and non-planar `newSketch`.
 

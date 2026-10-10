@@ -78,7 +78,7 @@ def estimate_push(tr, state=None, metrics: bool = True, exports: tuple = ()) -> 
             vs = 0 if h == state.vs_hash else 1
     items.append(("Variable Studio", vs))
     old = state.features if state else []
-    send, updated, reused_after = 0, False, False
+    send, updated, reused_after, frames = 0, False, False, 0
     for i, rec in enumerate(tr.features):
         e = old[i] if i < len(old) else None
         if e and e.get("type", rec.feature_type) == rec.feature_type and e["hash"] == feature_hash(rec) \
@@ -86,9 +86,12 @@ def estimate_push(tr, state=None, metrics: bool = True, exports: tuple = ()) -> 
             reused_after = reused_after or updated
             continue
         send += 1
+        frames += rec.sketch is not None and rec.sketch.origin_base is None  # sketch on a part face: measure its frame
         updated = updated or e is not None
     extra_deletes = max(0, len(old) - len(tr.features))
     items.append(("features", send + extra_deletes))
+    if frames:
+        items.append(("face sketch frames", frames))
     items.append(("status check", 1 if (reused_after or (vs == 1 and old)) else 0))
     if metrics:
         items.append(("volume check", 1))

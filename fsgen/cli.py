@@ -63,7 +63,7 @@ def cmd_generate(args):
         res = generate_native(args.request, Path(args.out) if args.out else None, name=args.name, paste=args.paste,
                               backend=args.backend, model=args.model, max_fixes=args.max_fixes,
                               review_rounds=0 if args.no_review else args.reviews, web=not args.no_web,
-                              llm_command=args.llm_command,
+                              llm_command=args.llm_command, document=args.document,
                               export_formats=tuple(f for f in (args.export or "").split(",") if f),
                               budget=args.budget)
         print(json.dumps({k: v for k, v in res.items() if k != "history"}, indent=2, default=str))
@@ -169,9 +169,10 @@ def cmd_studio(args):
         print(f"  {f.feature_type:16s} {f.name}")
     from .native import build as nb
     from .usage import estimate_push
-    states = nb.load_states()
+    from .cloud import known_target
     sname = args.name or path.stem
-    st0 = None if args.fresh or sname not in states else nb.StudioState(**states[sname])
+    tgt = known_target(args.document)
+    st0 = None if args.fresh or tgt is None else nb.find_state(sname, tgt["did"], tgt["wid"])
     est = estimate_push(tr, st0, metrics=args.metrics, exports=tuple(f for f in (args.export or "").split(",") if f))
     print(f"push to \"{sname}\" ({'new' if st0 is None else 'update'}): " + est.text())
     if args.action == "paste":
@@ -204,8 +205,8 @@ def cmd_studio(args):
         print(f"refusing to push: estimate {est.total} exceeds --budget {args.budget}")
         return 1
     o = Onshape(purpose=f"studio push {path.name}")
-    from .cloud import workspace_ids
-    ws = workspace_ids(o)
+    from .cloud import target_workspace
+    ws = target_workspace(o, args.document)
     st = nb.get_studio(o, args.name or path.stem, ws["did"], ws["wid"], fresh=args.fresh)
     r = nb.push_trace(o, st, tr)
     from .native import catalog
@@ -405,6 +406,7 @@ def main(argv=None):
     g.add_argument("--no-review", action="store_true")
     g.add_argument("--out")
     g.add_argument("--name", help="Part Studio name (reuses and updates it if it exists)")
+    g.add_argument("--document", help="build in this existing document/branch URL (also FSGEN_DOCUMENT)")
     g.add_argument("--export", default="", help="export via API: comma list of step,stl (costs calls; the Onshape UI "
                                                 "exports for free)")
     g.add_argument("--reviews", type=int, default=2, help="max review rounds (a follow-up checks the fixes)")
@@ -425,6 +427,8 @@ def main(argv=None):
     s.add_argument("file")
     s.add_argument("--name", help="Part Studio name (default: file name)")
     s.add_argument("--fresh", action="store_true", help="create a new Part Studio instead of updating")
+    s.add_argument("--document", help="build in this existing document/branch (URL .../documents/<id>/w/<id>/...) "
+                                      "instead of fsgen's own private document; also FSGEN_DOCUMENT")
     s.add_argument("--export", default="", help="also export via API: step,stl (STL ~1 call, STEP ~4)")
     s.add_argument("--metrics", action="store_true", help="fetch parts/volume/area (1 call)")
     s.add_argument("--view", action="store_true", help="save Onshape's isometric render (1 call)")

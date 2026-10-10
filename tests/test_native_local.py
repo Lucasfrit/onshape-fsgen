@@ -14,6 +14,7 @@ ONSHAPE_VOLUMES = {  # mm^3, from Onshape massproperties
     "examples/native/enclosure.fs": 30000.836,
     "examples/native/generated/nema17_mount.fs": 19831.865,
     "examples/native/generated/fan_adapter.fs": 43299.793,
+    "examples/native/face_sketches.fs": 6932.246,  # sketches on part faces (2026-10-10)
 }
 
 

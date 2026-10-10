@@ -154,9 +154,13 @@ search the web.
 | Later edits | change parameters in the dialog | edit any sketch, dimension or feature; re-push costs 1–2 calls |
 | Checked first | yes, locally | yes, locally + 1-call volume check in Onshape |
 
+Push goes to an `fsgen-workspace` document, or to your own with `--document <Onshape URL>`. If you only want to
+look at a part, importing a STEP costs fewer calls; the native tree pays off once you edit or iterate
+(variables drive the sketch dimensions, so changing one in the Variable Studio costs nothing).
+
 ## What it can build today
 
-Sketches (lines, arcs, circles, rectangles, polylines, polygons) on default or offset planes · extrude
+Sketches (lines, arcs, circles, rectangles, polylines, polygons) on default planes, offset planes or part faces · extrude
 (new / add / remove / intersect, blind, through-all, symmetric, two directions) · revolve · loft · fillet ·
 chamfer · shell · booleans · linear / circular / mirror feature patterns (including patterns of patterns) ·
 helix + sweep (threads). Not yet: draft, sheet metal, surfaces. Full table:
@@ -195,8 +199,8 @@ Experimental: built and tested by one person over a few sessions, with help from
 the description doesn't give are assumed (and listed in `assumptions.md`) or looked up on the web, and
 dimensions that contradict each other may be changed (see the fan adapter in
 [examples/prompts.md](examples/prompts.md)). How many repair rounds a part needs depends on the model: complex
-parts need a strong one and more tokens. Sketches on part faces and several advanced features
-are not supported yet. Threads build locally, but some helix/sweep details are not yet confirmed in Onshape.
+parts need a strong one and more tokens. Several advanced features are not supported yet. Threads build
+locally, but some helix/sweep details are not yet confirmed in Onshape.
 Not affiliated with Onshape or PTC.
 
 ## Credits and license
