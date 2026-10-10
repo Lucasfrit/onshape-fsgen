@@ -23,7 +23,7 @@ from ..fslite.interp import Builtin, Function, Interpreter
 from ..fslite.runner import RunResult, describe, render_png
 from ..fslite.stdlib import QList, StdLib
 from ..fslite.values import FSError, Id, Line, Plane, Q, Vec, mag
-from .script import DEFAULT_PLANES, FeatureRec, QText, TraceResult
+from .script import DEFAULT_PLANES, FeatureRec, QText, TraceResult, face_sketch_frame
 
 IMPLEMENTED = {"newSketch", "extrude", "revolve", "fillet", "chamfer", "cPlane", "linearPattern", "circularPattern",
                "mirror", "shell", "booleanBodies", "deleteBodies", "loft", "helix", "sweep", "assignVariable"}
@@ -111,11 +111,9 @@ class LocalBuilder:
         fp = G.face_plane(faces[0].shape)
         if fp is None:
             raise FSError(f"{what}: face is not planar")
-        o, n, x = fp
-        c = G.props(faces[0].shape, "area").CentreOfMass()
-        self.warnings.append(f"{what}: sketching on a part face; local sketch orientation may differ from Onshape "
-                             "(prefer a cPlane offset from a default plane)")
-        return Plane(np.array([c.X(), c.Y(), c.Z()]), n, x)
+        o, n, _ = fp
+        origin, x, _ = face_sketch_frame(o, n)  # the push converts to Onshape's frame on this face
+        return Plane(origin, n, x)
 
     def axis_of(self, qt: QText, what: str) -> Line:
         for e in self.query(qt):
@@ -256,6 +254,9 @@ class LocalBuilder:
             b2 = p["secondDirectionBound"].name if p.get("secondDirectionBound") is not None else "BLIND"
             e0 = extent(b2, "secondDirectionDepth")
         shapes = [G.make_prism(G.translate(f, -e0 * d) if e0 else f, (e1 + e0) * d) for f in faces]
+        c = G.props(faces[0], "area").CentreOfMass()
+        c = np.array([c.X(), c.Y(), c.Z()])
+        self.ctx.caps[(rec.name,)] = (c - e0 * d, c + min(e1, 1e3) * d, d)  # for qCapEntity
         self.apply_op(rec, Id((rec.name, "tool")), shapes)
 
     def f_revolve(self, rec: FeatureRec):

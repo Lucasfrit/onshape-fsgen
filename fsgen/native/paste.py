@@ -88,6 +88,9 @@ class PasteWriter:
     def query(self, qt: QText) -> str:
         text = qt.text
         for name in qt.refs:
+            # caps belong to the extrude operation, which is the feature's "tool" here
+            for fn in ("qCapEntity", "qNonCapEntity"):
+                text = text.replace(f'{fn}(makeId("@@{name}@@")', f'{fn}(id + "{self.ids[name]}" + "tool"')
             text = text.replace(f'makeId("@@{name}@@")', f'id + "{self.ids[name]}"')
         return text
 
@@ -127,8 +130,8 @@ class PasteWriter:
         m = re.fullmatch(r'qCreatedBy\(makeId\("@@(.+)@@"\), EntityType\.FACE\)', t)
         if m and m.group(1) in self.plane_fs:
             return m.group(1)
-        raise PasteError(f"plane {t} is not a default or offset plane (sketches on part faces are not supported "
-                         "in the paste export; use cPlane)")
+        raise PasteError(f"plane {t} is not a default or offset plane (planes made from part faces are not "
+                         "supported in the paste export; sketch on the face directly)")
 
     def plane_expr(self, pname: str) -> str:
         o, n, x = self.plane_fs[pname]
@@ -153,7 +156,16 @@ class PasteWriter:
 
     def f_newSketch(self, rec: FeatureRec):
         sk = rec.sketch
-        pname = self.plane_name_of(sk.plane)
+        if sk.origin_base is None and rec.name in self.lb.sketch_planes:
+            # part face: fsgen's face frame (projected origin, fixed axes from the local build); the origin is read
+            # from the face at run time, so the sketch follows the face when parameters move it
+            pl = self.lb.sketch_planes[rec.name]
+            n, x = tuple(float(c) + 0.0 for c in pl.normal), tuple(float(c) + 0.0 for c in pl.x)
+            pname = f"{rec.name} face"
+            self.plane_fs[pname] = (f'dot(evPlane(context, {{ "face" : {self.query(sk.plane)} }}).origin, '
+                                    f'{self.vec3(n)}) * {self.vec3(n)}', n, x)
+        else:
+            pname = self.plane_name_of(sk.plane)
         self.sketch_plane[rec.name] = pname
         var = self.ids[rec.name] + "Sk"  # not "sk" + Name: a sketch named "Circle" would shadow skCircle()
         self.emit(f'var {var} = newSketchOnPlane(context, id + "{self.ids[rec.name]}", '

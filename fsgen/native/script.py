@@ -40,6 +40,22 @@ DEFAULT_FEATURES = {"Origin", "Top", "Front", "Right"}
 DEFAULT_PLANES = {"Top": ((1, 0, 0), (0, 1, 0), (0, 0, 1)),
                   "Front": ((1, 0, 0), (0, 0, 1), (0, -1, 0)),
                   "Right": ((0, 1, 0), (0, 0, 1), (1, 0, 0))}
+
+
+def face_sketch_frame(point, normal) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """fsgen's sketch frame (origin, x, y) on a part face or a plane that is not an offset of a default plane.
+
+    Onshape's sketch there has the same origin but an x-axis that depends on how the face was made (measured
+    2026-10-10), so scripts use this one and the push turns it. Origin: the world origin projected onto the plane. Axes: the x-axis of the parallel default plane and y = normal x x (Top-parallel faces: x = +X);
+    other planes: FeatureScript's plane(origin, normal) x-axis.
+    """
+    from ..fslite.values import default_x
+    n = np.asarray(normal, float) / np.linalg.norm(normal)
+    x = next((np.array(u, float) for u, _, nn in DEFAULT_PLANES.values() if abs(abs(np.dot(n, nn)) - 1) < 1e-9),
+             None)
+    if x is None:
+        x = default_x(n)
+    return float(np.dot(point, n)) * n, x, np.cross(n, x)
 # Features the LLM may use. Anything in SPECS works in principle; this list is what we document/test.
 SUPPORTED = ["assignVariable", "newSketch", "extrude", "revolve", "fillet", "chamfer", "cPlane", "linearPattern",
              "circularPattern", "mirror", "shell", "booleanBodies", "deleteBodies", "sweep", "draft", "thicken",
@@ -120,6 +136,10 @@ class SketchRec:
     plane: QText
     plane_name: str | None  # default plane name when sketching on Top/Front/Right
     entities: list[SketchEntity] = field(default_factory=list)
+    # default plane this sketch's plane is offset from (Top/Front/Right itself, or an offset cPlane of one):
+    # sketch coordinates are then measured from the projected origin, so dimensions can reference it.
+    # None: a part face or other plane, in face_sketch_frame coordinates (the push measures Onshape's frame)
+    origin_base: str | None = None
     dims: list[dict] = field(default_factory=list)  # requested driving dimensions
     solved: bool = False
 
@@ -167,6 +187,25 @@ class Tracer:
         if name in self.names:
             raise FSError(f"{fname}: feature name \"{name}\" is already used; every feature needs a unique name")
         return name
+
+    def offset_base(self, q: QText, depth: int = 0) -> str | None:
+        """Default plane that plane query `q` is an OFFSET cPlane of (directly or via other offset planes)."""
+        import re
+        if depth > 10:
+            return None
+        for p in DEFAULT_PLANES:
+            if q.text == f'qCreatedBy(makeId("{p}"), EntityType.FACE)':
+                return p
+        m = re.fullmatch(r'qCreatedBy\(makeId\("@@(.+)@@"\), EntityType\.FACE\)', q.text)
+        if not m:
+            return None
+        rec = next((f for f in self.features if f.name == m.group(1) and f.feature_type == "cPlane"), None)
+        if rec is None or not isinstance(rec.params.get("entities"), QText):
+            return None
+        ctype = rec.params.get("cplaneType")
+        if ctype is not None and getattr(ctype, "name", None) != "OFFSET":
+            return None
+        return self.offset_base(rec.params["entities"], depth + 1)
 
     def add(self, rec: FeatureRec):
         self.names.add(rec.name)
@@ -254,7 +293,7 @@ class Tracer:
             for p in DEFAULT_PLANES:
                 if pq.text == f'qCreatedBy(makeId("{p}"), EntityType.FACE)':
                     plane_name = p
-            sk = SketchRec(name, pq, plane_name)
+            sk = SketchRec(name, pq, plane_name, origin_base=plane_name or tr.offset_base(pq))
             rec = FeatureRec("newSketch", name, {"sketchPlane": pq}, sketch=sk, line=tr.current_line)
             if "disableImprinting" in m:
                 rec.params["disableImprinting"] = m["disableImprinting"]

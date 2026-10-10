@@ -301,3 +301,61 @@ LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists;
   area, height and size. Exactly-45° chamfers need a 0.5° allowance or meshing noise flags them. (tested)
 - Artifacts (claude.ai pages) serve no binary files (`.stl` refused), so the 3D viewer embeds the meshes as base64
   text. `fsgen studio view` writes a single self-contained HTML file. (tested)
+
+## Feedback from an outside test (vertical-cloud-lab/powder-doser PR #178, 2026-10-10)
+
+A Claude agent in another project built a part with fsgen and reported what got in the way. Changes made:
+
+- **Variables did not drive polylines, free lines or arcs.** Only rectangles, circles and explicit `dims` were
+  dimensioned; other sketch entities were sent unconstrained, so a variable change in the Variable Studio did not
+  move them. Now every vertex of a line/polyline/arc on a default plane, or on an offset plane of one
+  (`cPlane` chains are followed back to Top/Front/Right), gets horizontal/vertical distance dimensions to the origin
+  (or alignment when the coordinate is 0), using the script's expressions (`#width / 2`, …) where they exist.
+  Tested in Onshape with `out/dimtest/dim_test.fs` (polyline base on Top driven by `#width`, tower with lines and
+  an arc on an 8 mm offset plane of Right): volume 9542.478 mm³ as built locally; then **only** the Variable
+  Studio was changed (width 40 → 50, plateThickness 4 → 6, hingeDrop 5 → 10, the way a user edits it) and
+  Onshape gave 13842.478 mm³, exactly the local build with the new values; all features OK, no over-defined
+  sketches. 14 calls (5 features, Part Studio + Variable Studio 3, 2 volume checks, 2 status checks, 1 setVariables).
+  Sketches on part faces: see the next section.
+- **Feature patterns of ADD extrudes failed** (`PATTERN_SWITCH_TO_PER_INSTANCE`) unless the script set
+  `fullFeaturePattern`. fsgen now sends `fullFeaturePattern: true` ("Reapply features") for FEATURE patterns by
+  default; an explicit `false` in the script wins. (tested on the fake server)
+- **Pushing into the user's own document**: `--document <Onshape URL>` (or `FSGEN_DOCUMENT`) on
+  `fsgen studio push` and `fsgen generate`. Studio state is now stored per workspace, so the same part name in two
+  documents doesn't collide; old state files still work. Resolving a URL costs 0 calls (it is parsed, not
+  looked up). (tested, `tests/test_document_target.py`)
+- A new document comes with an empty "Part Studio 1". Reusing it would save one call but means renaming it
+  (1 call) and guessing which tab is meant; deleting it in the UI is free, so fsgen leaves it.
+- When fsgen is worth its calls: importing a STEP costs fewer calls if you only want to look at the part.
+  The native tree pays off once someone edits or iterates (a variable change is 0 calls in the UI, a re-push
+  1 call per changed feature).
+
+## Sketches on part faces (2026-10-10)
+
+- `evPlane` of a part face: origin = the face's bounding-box centre (loose for curved edges: 21.1 instead of 21 on
+  a face with an arc), x-axis = from how the face was made (cap faces: the sketch plane's x; side faces: along the
+  extruded edge, e.g. (-0.93, 0.37, 0) on a slanted face; some faces get x = -X or -Y). Not predictable locally.
+  (1 call, 8 faces)
+- But a sketch on that face (`BTMSketch`, read back with `evOwnerSketchPlane`) has its **origin at the world origin
+  projected onto the face** and evPlane's x-axis. The first try converted with evPlane's origin: the slot landed
+  half off the block and the side hole cut nothing (INFO); volumes were off by exactly those amounts. (1 call)
+- fsgen now defines face sketch coordinates as: projected world origin, x = the parallel default plane's x,
+  y = normal × x. The push measures the face's x-axis with evPlane (1 call per face sketch it sends, with
+  `rollbackBarIndex` when later features exist, so the face is seen as it is at the sketch's position: worked) and
+  turns the sketch; every vertex gets distances to the projected Origin. Dimensioned face sketches count as driven,
+  so a variable change doesn't re-send them. The local builder and the paste export use the same frame (paste reads
+  the face's plane at run time; checked locally only).
+- Test (`examples/native/face_sketches.fs`: sketches on a plate's top face, a block's top and +Y side faces):
+  6932.246 mm³ in Onshape vs 6932.245 locally; Variable Studio edit (4 values) → 11058.263, exactly the local
+  value; edit back → 6932.246. All features OK.
+- **Point-based queries are frozen.** The tracer evaluates query arguments to numbers (`#plateThickness` became
+  4.0 in `qCoincidesWithPlane`), and Onshape stores them that way, so a face picked by a point is lost once a
+  variable moves it. Pick by feature: `qCapEntity(id + "Base", CapType.END, EntityType.FACE)`,
+  `qParallelPlanes(qNonCapEntity(id + "Block", EntityType.FACE), vector(0, 1, 0))` (all three work in Onshape;
+  signature of qParallelPlanes confirmed with the MCP doc search). The local engine now has them too.
+  `qFarthestAlong` is ambiguous for this: side faces reach the same height as the top face (locally it returned 5).
+- Calls: 34 (probe 1, push + variable test 22, sketch-plane probe 1, re-send of the face sketches 8, last variable
+  test 2).
+- Official usage (MCP `get_api_usage`) was 1166 when fsgen's ledger said 741: about 425 calls came from outside
+  fsgen (the MCP server, other sessions or apps). Recalibrated with `fsgen usage --set-official 1166`. Two MCP doc
+  searches followed; whether they counted was not measured.

@@ -42,6 +42,13 @@ Right: normal +X, sketch x -> +Y, sketch y -> +Z
 qCreatedBy(makeId("Top"), EntityType.FACE) is the Top plane (same for "Front", "Right");
 qCreatedBy(makeId("Origin"), EntityType.VERTEX) is the origin. Offset planes:
 cPlane(context, id + "Lid plane", { "entities" : qCreatedBy(makeId("Top"), EntityType.FACE), "offset" : #height }).
+Part faces: newSketch on a planar face picked by feature, so it is still found when variables move it:
+qCapEntity(id + "Base", CapType.END, EntityType.FACE) (end face of an extrude; START = its sketch side), or a side
+face by its outward normal: qParallelPlanes(qNonCapEntity(id + "Block", EntityType.FACE), vector(0, 1, 0)).
+Face sketch coordinates: origin = the world origin projected onto the face; x = the x of the parallel default plane,
+y = normal x x (top face: x -> +X, y -> +Y; bottom: x -> +X, y -> -Y; +Y side: x -> +X, y -> -Z; -Y side: x -> +X,
+y -> +Z; +X side: x -> +Y, y -> +Z; -X side: x -> +Y, y -> -Z). The face normal points out of the part: cut into it
+with "oppositeDirection" : true. Each face sketch costs 1 extra Onshape call when pushed; an offset cPlane is free.
 An extrude goes along the sketch plane normal (use "oppositeDirection" : true to flip). For a cut, check the
 direction: a REMOVE extrude pointing away from the part does nothing.
 
@@ -110,8 +117,11 @@ qCreatedBy(id + "Feature", EntityType.BODY | FACE | EDGE | VERTEX), qSketchRegio
 sketchEntityQuery(id + "Sketch", EntityType.EDGE, "entityId"), qUnion([...]), qSubtraction(a, b),
 qIntersection([...]), qParallelEdges(edges, vector(0, 0, 1)), qContainsPoint(q, vector(x, y, z) * millimeter),
 qCoincidesWithPlane(q, plane(...)), qGeometry(q, GeometryType.CIRCLE | LINE | PLANE | CYLINDER),
-qClosestTo(q, point), qFarthestAlong(q, direction), qLargest(q), qSmallest(q), qOwnedByBody(body, EntityType.EDGE).
-Query point/vector arguments must be plain numbers (no #variables inside queries).
+qClosestTo(q, point), qFarthestAlong(q, direction), qLargest(q), qSmallest(q), qOwnedByBody(body, EntityType.EDGE),
+qCapEntity(id + "Extrude", CapType.START | END, EntityType.FACE), qNonCapEntity(id + "Extrude", EntityType.FACE),
+qParallelPlanes(q, normal vector).
+Query point/vector arguments must be plain numbers (no #variables inside queries): Onshape keeps them fixed, so a
+point-based query loses its entity when a variable moves it. Prefer queries by feature (qCreatedBy, qCapEntity).
 Select edges for fillets/chamfers geometrically (qContainsPoint with a point ON the edge, qParallelEdges) -- never by index.
 
 # Checklist

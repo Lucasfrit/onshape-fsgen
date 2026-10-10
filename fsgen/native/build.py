@@ -15,9 +15,11 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
+
 from ..fslite.values import EnumVal, FSError, Id, Q, Vec, expr_of, has_expr, literal_expr, mag
 from ..onshape import Onshape, OnshapeError, RateLimited
-from .script import DEFAULT_FEATURES, SPECS, FeatureRec, QText, SketchRec, TraceResult, trace
+from .script import DEFAULT_FEATURES, SPECS, FeatureRec, QText, SketchRec, TraceResult, face_sketch_frame, trace
 
 STATE = Path(".fsgen_native.json")
 ORIGIN_Q = 'query=qCreatedBy(makeId("Origin"), EntityType.VERTEX);'
@@ -95,33 +97,60 @@ def _C(cid, ctype, *params):
     return {"btType": "BTMSketchConstraint-2", "constraintType": ctype, "entityId": cid, "parameters": list(params)}
 
 
-def sketch_json(sk: SketchRec, ids: dict[str, str], with_dims: bool = True) -> dict:
-    ents, points = [], []  # points: (point id, x, y)
+def sketch_frame(onshape_plane) -> tuple[np.ndarray, np.ndarray]:
+    """(R, t) mapping script sketch coordinates p (face_sketch_frame) to Onshape's on that plane: R @ p + t.
+
+    A sketch on a part face has its origin at the projected world origin, like fsgen's frame, but its x-axis is the
+    face's (evPlane's x, which depends on how the face was made); evPlane's own origin (the face's bounding-box
+    centre) is not the sketch's (measured with evOwnerSketchPlane, 2026-10-10). So only a rotation remains."""
+    O, N, X = (np.asarray(a, float) for a in onshape_plane)
+    Y = np.cross(N, X)
+    _, xf, yf = face_sketch_frame(O, N)
+    return np.array([[xf @ X, yf @ X], [xf @ Y, yf @ Y]]), np.zeros(2)
+
+
+def sketch_json(sk: SketchRec, ids: dict[str, str], with_dims: bool = True, frame=None) -> dict:
+    """`frame`: (R, t) from sketch_frame for a sketch on a part face (None: the script's coordinates are Onshape's)."""
+    R, t = frame if frame is not None else (np.eye(2), np.zeros(2))
+    rot = math.atan2(R[1][0], R[0][0])
+
+    def T(x, y):
+        return tuple(float(c) for c in R @ np.array([x, y]) + t)
+
+    # Onshape's frame is a quarter turn from the script's: its horizontal is the script's vertical
+    quarter = frame is not None and abs(R[0][0]) < 1e-6 and abs(abs(R[1][0]) - 1) < 1e-6
+    aligned = frame is None or quarter or (abs(R[1][0]) < 1e-6 and abs(abs(R[0][0]) - 1) < 1e-6)
+
+    def hv(name):
+        return {"HORIZONTAL": "VERTICAL", "VERTICAL": "HORIZONTAL"}.get(name, name) if quarter else name
+
+    ents, points = [], []  # points: (point id, x, y) in script coordinates
     for e in sk.entities:
         g = e.geom
         if e.kind == "line":
-            x0, y0 = g["p0"].a
-            x1, y1 = g["p1"].a
+            x0, y0 = T(*g["p0"].a)
+            x1, y1 = T(*g["p1"].a)
             L = math.hypot(x1 - x0, y1 - y0)
             ents.append({"btType": "BTMSketchCurveSegment-155", "entityId": e.name, "isConstruction": e.construction,
                          "startPointId": f"{e.name}.start", "endPointId": f"{e.name}.end",
                          "startParam": 0.0, "endParam": L,
                          "geometry": {"btType": "BTCurveGeometryLine-117", "pntX": x0, "pntY": y0,
                                       "dirX": (x1 - x0) / L, "dirY": (y1 - y0) / L}})
-            points += [(f"{e.name}.start", x0, y0), (f"{e.name}.end", x1, y1)]
+            points += [(f"{e.name}.start", *g["p0"].a), (f"{e.name}.end", *g["p1"].a)]
         elif e.kind == "circle":
-            cx, cy = g["c"].a
+            cx, cy = T(*g["c"].a)
             ents.append({"btType": "BTMSketchCurve-4", "entityId": e.name, "centerId": f"{e.name}.center",
                          "isConstruction": e.construction,
                          "geometry": {"btType": "BTCurveGeometryCircle-115", "radius": g["r"].v, "xCenter": cx,
                                       "yCenter": cy, "xDir": 1.0, "yDir": 0.0, "clockwise": False}})
-            points.append((f"{e.name}.center", cx, cy))
+            points.append((f"{e.name}.center", *g["c"].a))
         elif e.kind == "arc":
+            acx, acy = T(g["cx"], g["cy"])
             ents.append({"btType": "BTMSketchCurveSegment-155", "entityId": e.name, "isConstruction": e.construction,
                          "startPointId": f"{e.name}.start", "endPointId": f"{e.name}.end", "centerId": f"{e.name}.center",
-                         "startParam": g["t0"], "endParam": g["t1"],
-                         "geometry": {"btType": "BTCurveGeometryCircle-115", "radius": g["r"], "xCenter": g["cx"],
-                                      "yCenter": g["cy"], "xDir": 1.0, "yDir": 0.0, "clockwise": False}})
+                         "startParam": g["t0"] + rot, "endParam": g["t1"] + rot,
+                         "geometry": {"btType": "BTCurveGeometryCircle-115", "radius": g["r"], "xCenter": acx,
+                                      "yCenter": acy, "xDir": 1.0, "yDir": 0.0, "clockwise": False}})
             for pid, t in ((f"{e.name}.start", g["t0"]), (f"{e.name}.end", g["t1"])):
                 points.append((pid, g["cx"] + g["r"] * math.cos(t), g["cy"] + g["r"] * math.sin(t)))
             points.append((f"{e.name}.center", g["cx"], g["cy"]))
@@ -141,7 +170,9 @@ def sketch_json(sk: SketchRec, ids: dict[str, str], with_dims: bool = True) -> d
             cons.append(_C(f"co_{a[0]}_{b[0]}", "COINCIDENT", _S("localFirst", a[0]), _S("localSecond", b[0])))
         for p in gr:
             group_of[p[0]] = gi
-    on_default = sk.plane_name is not None
+    # dimensions reference the origin: on Top/Front/Right, on an offset plane of one, or on a part face whose
+    # frame was measured (projected origin; a frame at an odd angle to the script's gets no position dimensions)
+    on_default = sk.origin_base is not None or (frame is not None and aligned)
     origin = {"btType": "BTMParameterQueryList-148", "parameterId": "externalSecond", "queries": [{
         "btType": "BTMIndividualQuery-138", "queryString": ORIGIN_Q}]}
     fixed_groups = set()
@@ -150,23 +181,31 @@ def sketch_json(sk: SketchRec, ids: dict[str, str], with_dims: bool = True) -> d
             if math.hypot(gr[0][1], gr[0][2]) < 1e-9:
                 cons.append(_C(f"origin_{gr[0][0]}", "COINCIDENT", _S("localFirst", gr[0][0]), origin))
                 fixed_groups.add(gi)
+
+    def position(tag, pid, x, y):
+        """Horizontal and vertical distance of point `pid` from the origin (expressions keep variables live)."""
+        for axis, v, dirname, align in (("x", x, "HORIZONTAL", "VERTICAL"), ("y", y, "VERTICAL", "HORIZONTAL")):
+            dirname, align = hv(dirname), hv(align)
+            if abs(mag(v)) < 1e-12 and not has_expr(v):
+                # on the axis: align with the origin instead of a zero dimension
+                cons.append(_C(f"{tag}{axis}", align, _S("localFirst", pid), origin))
+            else:
+                cons.append(_C(f"{tag}{axis}", "DISTANCE", _S("localFirst", pid), origin,
+                               {"btType": "BTMParameterEnum-145", "parameterId": "direction",
+                                "enumName": "DimensionDirection", "value": dirname},
+                               {"btType": "BTMParameterQuantity-147", "parameterId": "length",
+                                "expression": _pos_expr(v)}))
+
+    rect_lines = {d["entity"] for d in sk.dims if d["type"] in ("HORIZONTAL", "VERTICAL")}
     if with_dims:
-        rect_lines = {d["entity"] for d in sk.dims if d["type"] in ("HORIZONTAL", "VERTICAL")}
-        for e in sk.entities:  # axis-aligned free lines: add H/V
-            if e.kind == "line" and e.name not in rect_lines:
-                dx, dy = (e.geom["p1"].a - e.geom["p0"].a)
-                if abs(dy) < 1e-12:
-                    cons.append(_C(f"h_{e.name}", "HORIZONTAL", _S("localFirst", e.name)))
-                elif abs(dx) < 1e-12:
-                    cons.append(_C(f"v_{e.name}", "VERTICAL", _S("localFirst", e.name)))
         for i, d in enumerate(sk.dims):
             t = d["type"]
             if t in ("HORIZONTAL", "VERTICAL"):
-                cons.append(_C(f"{t[0].lower()}_{d['entity']}", t, _S("localFirst", d["entity"])))
+                cons.append(_C(f"{t[0].lower()}_{d['entity']}", hv(t), _S("localFirst", d["entity"])))
             elif t == "DISTANCE":
                 cons.append(_C(f"dim{i}", "DISTANCE", _S("localFirst", d["a"]), _S("localSecond", d["b"]),
                                {"btType": "BTMParameterEnum-145", "parameterId": "direction",
-                                "enumName": "DimensionDirection", "value": d["dir"]},
+                                "enumName": "DimensionDirection", "value": hv(d["dir"])},
                                {"btType": "BTMParameterQuantity-147", "parameterId": "length",
                                 "expression": _pos_expr(d["value"])}))
             elif t == "DIAMETER":
@@ -178,17 +217,41 @@ def sketch_json(sk: SketchRec, ids: dict[str, str], with_dims: bool = True) -> d
                 if gi is None or gi in fixed_groups:
                     continue
                 fixed_groups.add(gi)
-                for axis, v, dirname, align in (("x", d["x"], "HORIZONTAL", "VERTICAL"),
-                                                ("y", d["y"], "VERTICAL", "HORIZONTAL")):
-                    if abs(mag(v)) < 1e-12 and not has_expr(v):
-                        # on the axis: align with the origin instead of a zero dimension
-                        cons.append(_C(f"pos{i}{axis}", align, _S("localFirst", d["point"]), origin))
-                    else:
-                        cons.append(_C(f"pos{i}{axis}", "DISTANCE", _S("localFirst", d["point"]), origin,
-                                       {"btType": "BTMParameterEnum-145", "parameterId": "direction",
-                                        "enumName": "DimensionDirection", "value": dirname},
-                                       {"btType": "BTMParameterQuantity-147", "parameterId": "length",
-                                        "expression": _pos_expr(v)}))
+                position(f"pos{i}", d["point"], d["x"], d["y"])
+        # vertices of lines, polylines and arcs: position each from the origin with the expressions the script
+        # used, so variables drive these sketches too (before, only rectangles and circles were dimensioned)
+        vertex_values = {}
+        for e in sk.entities:
+            if e.construction or e.kind not in ("line", "arc") or e.name in rect_lines:
+                continue
+            for end, v in (("start", e.geom["p0"]), ("end", e.geom["p1"])):
+                if e.kind == "line":
+                    vertex_values[f"{e.name}.{end}"] = v.items()
+                else:  # arc point ids follow the parameter order; match the script's points by position
+                    for pid in (f"{e.name}.start", f"{e.name}.end"):
+                        px, py = next((p[1], p[2]) for p in points if p[0] == pid)
+                        if math.hypot(px - v.a[0], py - v.a[1]) < 1e-9:
+                            vertex_values[pid] = v.items()
+        if on_default:
+            for gi, gr in enumerate(groups):
+                if gi in fixed_groups:
+                    continue
+                pid = next((p[0] for p in gr if p[0] in vertex_values), None)
+                if pid is None:
+                    continue
+                fixed_groups.add(gi)
+                position(f"vtx_{pid}_", pid, *vertex_values[pid])
+        for e in sk.entities:  # axis-aligned free lines: H/V, unless both ends are already positioned
+            if e.kind == "line" and e.name not in rect_lines:
+                if {group_of.get(f"{e.name}.start"), group_of.get(f"{e.name}.end")} <= fixed_groups:
+                    continue
+                dx, dy = (e.geom["p1"].a - e.geom["p0"].a)
+                if not aligned:
+                    continue
+                if abs(dy) < 1e-12:
+                    cons.append(_C(f"h_{e.name}", hv("HORIZONTAL"), _S("localFirst", e.name)))
+                elif abs(dx) < 1e-12:
+                    cons.append(_C(f"v_{e.name}", hv("VERTICAL"), _S("localFirst", e.name)))
     # entities whose geometry is fully determined by generated dimensions: Onshape re-solves them when a
     # variable changes, so their numeric geometry need not trigger a (billable) re-send of the sketch
     driven = []
@@ -197,30 +260,44 @@ def sketch_json(sk: SketchRec, ids: dict[str, str], with_dims: bool = True) -> d
         for e in sk.entities:
             if e.kind == "circle" and e.name in dim_ents and group_of.get(f"{e.name}.center") in fixed_groups:
                 driven.append(e.name)
-            elif e.kind == "line" and "." in e.name:
+            elif e.kind == "line" and e.name in rect_lines:
                 rect = e.name.rsplit(".", 1)[0]
                 if group_of.get(f"{rect}.bottom.start") in fixed_groups and any(
                         d.get("a") == f"{rect}.bottom.start" for d in sk.dims):
                     driven.append(e.name)
+            elif e.kind == "line" and not e.construction and {
+                    group_of.get(f"{e.name}.start"), group_of.get(f"{e.name}.end")} <= fixed_groups:
+                driven.append(e.name)  # both ends positioned: the line follows its dimensions
     return {"_driven": driven, "btType": "BTMSketch-151", "featureType": "newSketch", "name": sk.name,
             "parameters": [{"btType": "BTMParameterQueryList-148", "parameterId": "sketchPlane",
                             "queries": [_q(sk.plane.resolve(ids))]}],
             "entities": ents, "constraints": cons}
 
 
-def feature_json(rec: FeatureRec, ids: dict[str, str], with_dims: bool = True) -> dict:
+def feature_json(rec: FeatureRec, ids: dict[str, str], with_dims: bool = True, frame=None) -> dict:
     if rec.sketch is not None:
-        return sketch_json(rec.sketch, ids, with_dims)
+        return sketch_json(rec.sketch, ids, with_dims, frame)
     # Send the complete parameter set like the Onshape UI does: some features (e.g. cPlane without
     # "cplaneType") fail to regenerate when a parameter is omitted, even if it has a default.
     spec = SPECS[rec.feature_type]["params"]
     given = {k: param_json(rec.feature_type, k, v, ids) for k, v in rec.params.items()}
+    pattern_type = rec.params.get("patternType")
+    if ("fullFeaturePattern" in spec and "fullFeaturePattern" not in given
+            and getattr(pattern_type, "name", None) == "FEATURE"):
+        # Feature patterns: "Reapply features" by default. The local builder always re-applies the patterned
+        # features; Onshape's default (copy the resulting geometry) fails for e.g. mirrored ADD extrudes with
+        # PATTERN_SWITCH_TO_PER_INSTANCE (seen in an outside test, vertical-cloud-lab/powder-doser#178).
+        given["fullFeaturePattern"] = {"btType": "BTMParameterBoolean-144", "parameterId": "fullFeaturePattern",
+                                       "value": True}
     params = [given.get(k) or dict(p["defaultJson"]) for k, p in spec.items() if k in given or "defaultJson" in p]
     return {"btType": "BTMFeature-134", "featureType": rec.feature_type, "name": onshape_name(rec), "parameters": params}
 
 
 def feature_hash(rec: FeatureRec) -> str:
-    j = feature_json(rec, _Placeholders())
+    # a sketch on a part face is hashed as if its frame were measured: its dimensioned geometry then counts as
+    # driven, so a variable change does not re-send it (the rotation measured at push time is not hashed)
+    face = rec.sketch is not None and rec.sketch.origin_base is None
+    j = feature_json(rec, _Placeholders(), frame=(np.eye(2), np.zeros(2)) if face else None)
     driven = set(j.pop("_driven", []))
     for e in j.get("entities", []):
         if e["entityId"] in driven:
@@ -248,6 +325,7 @@ class StudioState:
     vs_eid: str | None = None  # Variable Studio element holding this Part Studio's variables
     vs_hash: str | None = None
     vs_referenced: bool = False
+    key: str = ""  # state key: "<name>@<workspace id>" (older states: just the name)
 
     def url(self, base="https://cad.onshape.com"):
         return f"{base}/documents/{self.did}/w/{self.wid}/e/{self.eid}"
@@ -259,16 +337,26 @@ def load_states(path: Path = STATE) -> dict:
 
 def save_state(st: StudioState, path: Path = STATE):
     states = load_states(path)
-    states[st.name] = st.__dict__
+    states[st.key or st.name] = st.__dict__
     path.write_text(json.dumps(states, indent=2))
 
 
-def get_studio(o: Onshape, name: str, did: str, wid: str, fresh: bool = False) -> StudioState:
+def find_state(name: str, did: str | None, wid: str | None) -> StudioState | None:
+    """Saved state of Part Studio `name` in document workspace (did, wid); None if it was never pushed there."""
     states = load_states()
-    if name in states and not fresh:
-        return StudioState(**states[name])
+    for key in (f"{name}@{wid}", name):
+        d = states.get(key)
+        if d and (did is None or (d["did"] == did and d["wid"] == wid)):
+            return StudioState(**{**d, "key": key})
+    return None
+
+
+def get_studio(o: Onshape, name: str, did: str, wid: str, fresh: bool = False) -> StudioState:
+    st = None if fresh else find_state(name, did, wid)
+    if st is not None:
+        return st
     eid = o.post(f"partstudios/d/{did}/w/{wid}", {"name": name})["id"]
-    st = StudioState(did, wid, eid, name)
+    st = StudioState(did, wid, eid, name, key=f"{name}@{wid}")
     save_state(st)
     return st
 
@@ -307,6 +395,28 @@ def diagnose(o: Onshape, st: StudioState, fid: str, rec: FeatureRec, ids: dict) 
     if counts:
         msg.append("query check: " + "; ".join(counts))
     return "\n".join(msg)
+
+
+def face_plane(o: Onshape, st: StudioState, plane_query: str, rollback: int | None = None):
+    """Onshape's evPlane (origin m, normal, x) of a part face or plane: 1 evalFeatureScript call.
+
+    `rollback`: evaluate with only the first N features (a sketch updated in place sees the face as it is at its
+    own position in the tree, before later features changed it). None if it can't be measured."""
+    script = ("function(context is Context, queries) { var p = evPlane(context, { \"face\" : " + plane_query + " }); "
+              "return [p.origin[0] / meter, p.origin[1] / meter, p.origin[2] / meter, p.normal[0], p.normal[1], "
+              "p.normal[2], p.x[0], p.x[1], p.x[2]]; }")
+    params = {"rollbackBarIndex": rollback} if rollback is not None else None
+    try:
+        r = o.post(f"partstudios/d/{st.did}/w/{st.wid}/e/{st.eid}/featurescript", {"script": script}, params=params)
+    except RateLimited:
+        raise
+    except OnshapeError:
+        return None
+    from ..cloud import _simplify
+    v = _simplify(r.get("result"))
+    if not isinstance(v, list) or len(v) != 9 or not all(isinstance(c, (int, float)) for c in v):
+        return None
+    return np.array(v[:3]), np.array(v[3:6]), np.array(v[6:])
 
 
 def check_statuses(o: Onshape, st: StudioState, fids: list[str]) -> dict[str, str]:
@@ -381,8 +491,24 @@ def push_trace(o: Onshape, st: StudioState, tr: TraceResult, log=print, diagnose
     updated_at = None
     reused_after_update: list[str] = []  # features kept as-is downstream of an in-place update
 
-    def send(rec, fid=None, with_dims=True):
-        body = feature_json(rec, ids, with_dims)
+    frames = {}
+
+    def sketch_frame_of(rec, i):
+        """Sketches on part faces: Onshape's frame there is measured (1 call) and the script's coordinates
+        converted; dimensions then hold the sketch to the projected origin."""
+        if rec.sketch is None or rec.sketch.origin_base is not None:
+            return None
+        if rec.name not in frames:
+            later = i < len(st.features) - 1
+            pl = face_plane(o, st, rec.sketch.plane.resolve(ids), rollback=i if later else None)
+            frames[rec.name] = sketch_frame(pl) if pl is not None else None
+            if pl is None:
+                res.warnings.append(f"sketch \"{rec.name}\": could not measure Onshape's frame on its face; sent in "
+                                    "fsgen's frame without position dimensions (geometry may be offset)")
+        return frames[rec.name]
+
+    def send(rec, fid=None, with_dims=True, i=0):
+        body = feature_json(rec, ids, with_dims, sketch_frame_of(rec, i))
         body.pop("_driven", None)
         if fid:
             r = o.post(f"{base}/featureid/{fid}", {"feature": {**body, "featureId": fid}})
@@ -397,12 +523,12 @@ def push_trace(o: Onshape, st: StudioState, tr: TraceResult, log=print, diagnose
             if updated_at is not None:
                 reused_after_update.append(existing["fid"])
             continue
-        fid, status = send(rec, existing["fid"] if existing else None)
+        fid, status = send(rec, existing["fid"] if existing else None, i=i)
         if existing:
             updated_at = i if updated_at is None else updated_at
         if status != "OK" and rec.sketch is not None:
             # keep the geometry, drop driving dimensions (in place: 1 call)
-            fid, status2 = send(rec, fid, with_dims=False)
+            fid, status2 = send(rec, fid, with_dims=False, i=i)
             res.warnings.append(f"sketch \"{rec.name}\": constraints gave {status}, kept geometry without "
                                 f"dimensions (now {status2})")
             status = status2

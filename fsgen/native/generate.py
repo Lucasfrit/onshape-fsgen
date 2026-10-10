@@ -117,15 +117,16 @@ def not_built_features(tr, loc) -> list[str]:
     return out
 
 
-def _existing_state(name):
-    states = nb.load_states()
-    return nb.StudioState(**states[name]) if name in states else None
+def _existing_state(name, document=None):
+    from ..cloud import known_target
+    tgt = known_target(document)
+    return nb.find_state(name, tgt["did"], tgt["wid"]) if tgt else None
 
 
 def generate_native(request: str, out_dir: Path | None = None, name: str | None = None, backend: str = "auto",
                     model: str | None = None, max_fixes: int = 5, review_rounds: int = 2,
                     export_formats: tuple = (), budget: int | None = None, paste: bool = False,
-                    web: bool = True, llm_command: str | None = None) -> dict:
+                    web: bool = True, llm_command: str | None = None, document: str | None = None) -> dict:
     llm = make_llm(backend, model, web=web, command=llm_command)
     label = re.sub(r"[^a-z0-9]+", "-", (name or studio_name(request)).lower()).strip("-") or "part"
     out_dir = out_dir or Path("out") / "native" / f"{time.strftime('%Y%m%d-%H%M%S')}-{label}"
@@ -244,7 +245,7 @@ def generate_native(request: str, out_dir: Path | None = None, name: str | None 
             break
         # ---- one push to Onshape: estimate first (offline), refuse if over budget
         from ..usage import allocation_status, estimate_push
-        est = estimate_push(tr, st if st is not None else (_existing_state(name) if name else None),
+        est = estimate_push(tr, st if st is not None else (_existing_state(name, document) if name else None),
                             exports=export_formats)
         alloc = allocation_status()
         log(est.text(alloc))
@@ -259,8 +260,8 @@ def generate_native(request: str, out_dir: Path | None = None, name: str | None 
         stage("pushing to Onshape")
         try:
             if st is None:
-                from ..cloud import workspace_ids
-                ws = ws or workspace_ids(o)
+                from ..cloud import target_workspace
+                ws = ws or target_workspace(o, document)
                 st = nb.get_studio(o, name or studio_name(request), ws["did"], ws["wid"], fresh=name is None)
                 log(f"Part Studio \"{st.name}\": {st.url(o.base)}")
             push = nb.push_trace(o, st, tr, log=lambda s: log(s))

@@ -40,6 +40,32 @@ class Workspace:
         return f"{base}/documents/{self.did}/w/{self.wid}/e/{eid or self.part}"
 
 
+DOC_URL = re.compile(r"documents/([0-9a-f]{24})/w/([0-9a-f]{24})")
+
+
+def parse_document(url: str) -> dict:
+    """{did, wid} from an Onshape URL (document workspace or branch: .../documents/<did>/w/<wid>/...)."""
+    m = DOC_URL.search(url or "")
+    if not m:
+        raise ValueError(f"not an Onshape document workspace URL: {url!r} (expected .../documents/<id>/w/<id>/...)")
+    return {"did": m.group(1), "wid": m.group(2)}
+
+
+def known_target(document: str | None = None, state_file: Path = STATE_FILE) -> dict | None:
+    """The target document without any API call: --document / FSGEN_DOCUMENT, else the saved workspace."""
+    import os
+    document = document or os.environ.get("FSGEN_DOCUMENT")
+    if document:
+        return parse_document(document)
+    return json.loads(state_file.read_text()) if state_file.exists() else None
+
+
+def target_workspace(o: Onshape, document: str | None = None, state_file: Path = STATE_FILE) -> dict:
+    """Document to build in: an existing one (--document URL / FSGEN_DOCUMENT, e.g. a company-owned public
+    document or a branch of it) or fsgen's own private document (created once, 4 calls)."""
+    return known_target(document, state_file) or workspace_ids(o, state_file)
+
+
 def workspace_ids(o: Onshape, state_file: Path = STATE_FILE) -> dict:
     """{did, wid, ...} of the fsgen document: read from the state file (0 calls) or create it once (4 calls)."""
     if state_file.exists():

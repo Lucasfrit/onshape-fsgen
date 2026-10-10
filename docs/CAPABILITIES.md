@@ -43,11 +43,11 @@ Typical cost: a 9-feature part with 5 variables = 14 calls (measured: pillow blo
 | Variable (`assignVariable`) | verified | yes (values used directly) | variable(context, name, value): by default all variables go into one Variable Studio (3 calls total); FSGEN_VARIABLES=tree makes Variable features in the tree (1 call each). |
 | Plane (`cPlane`) | verified | OFFSET only | Offset plane: entities = a plane/face, offset = distance (cplaneType is sent automatically). |
 | Chamfer (`chamfer`) | verified | EQUAL_OFFSETS only | chamferType ChamferType.EQUAL_OFFSETS + width. |
-| Circular pattern (`circularPattern`) | verified | FEATURE and PART; equal spacing / fixed angle | patternType FEATURE + instanceFunction [feature ids]; axis can be a construction line. |
+| Circular pattern (`circularPattern`) | verified | FEATURE and PART; equal spacing / fixed angle | patternType FEATURE + instanceFunction [feature ids]; axis can be a construction line. fsgen sends fullFeaturePattern (Reapply features) by default. |
 | Extrude (`extrude`) | verified | NEW/ADD/REMOVE/INTERSECT; BLIND, THROUGH_ALL, symmetric, second direction; no UP_TO_*, draft | A REMOVE extrude pointing away from the part finishes with INFO and cuts nothing; check the sketch normal. |
 | Fillet (`fillet`) | verified | constant radius (OCCT may fail where Onshape succeeds -> warning) | Select edges geometrically: qParallelEdges(edges, vector), qContainsPoint(edges, point on edge). |
 | Mirror (`mirror`) | verified | FEATURE and PART | patternType FEATURE + instanceFunction; mirrorPlane = a default plane face. |
-| Sketch (`newSketch`) | verified | lines, arcs, circles, rectangles, polylines, polygons; Top/Front/Right, offset planes, planar faces* | Default planes: Top/Front/Right; constraints and dimensions are generated automatically. |
+| Sketch (`newSketch`) | verified | lines, arcs, circles, rectangles, polylines, polygons; Top/Front/Right, offset planes, planar faces* | Constraints and dimensions are generated automatically: rectangles, circles and every line/polyline/arc vertex, dimensioned to the (projected) origin, so Variable Studio edits move them (verified 2026-10-10 on default planes, offset planes and part faces). |
 | Revolve (`revolve`) | verified | full or angle, symmetric, opposite direction | Axis: a construction line in the profile sketch via sketchEntityQuery(id + "Sketch", EntityType.EDGE, "axis"). |
 | Shell (`shell`) | verified | faces to remove, inward (or opposite direction) | Positive thickness hollows inward; entities = faces to remove. |
 | Linear pattern (`linearPattern`) | learned | FEATURE (extrude/revolve/loft) and PART; one or two directions |  |
@@ -59,8 +59,11 @@ Typical cost: a 9-feature part with 5 variables = 14 calls (measured: pillow blo
 
 Also available in Onshape but never tried, and not in the local builder (82): `angleTolerance`, `bodyDraft`, `boundarySurface`, `bridgingCurve`, `cPoint`, `compositeCurve`, `compositePart`, `computeMass`, `constrainedSurface`, `copyPart`, `cube`, `curvePattern`, `cutlist`, `cutlistTable`, `decal`, `deleteFace`, `derivedMirror`, `diameterTolerance`, `draft`, `editCurve`, `enclose`, `endcap`, `extendSurface`, `externalThread`, `faceBlend`, `fill`, `fitSpline`, `flangeCouplingHalf`, `frame`, `frameTrim`, `gusset`, `hole`, `holeTable`, `importDerived`, `importForeign`, `intersectionCurve`, `isocline`, `isoparametricCurve`, `lengthTolerance`, `mateConnector`, `modifyFillet`, `moveFace`, `mutualTrim`, `nameEntity`, `offsetCurveOnFace`, `offsetSurface`, `pcbEnd`, `pcbStart`, `projectCurves`, `queryVariable`, `replaceFace`, `rib`, `routingCurve`, `routingCurveTable`, `ruledSurface`, `sheetMetalBend`, `sheetMetalBendRelief`, `sheetMetalCorner`, `sheetMetalCornerBreak`, `sheetMetalCornerBreakAttributeBased`, `sheetMetalEnd`, `sheetMetalFlange`, `sheetMetalFormed`, `sheetMetalHem`, `sheetMetalJog`, `sheetMetalJoint`, `sheetMetalLoft`, `sheetMetalMakeJoint`, `sheetMetalRecognize`, `sheetMetalRefold`, `sheetMetalRip`, `sheetMetalStart`, `sheetMetalTab`, `sheetMetalUnfold`, `sphere`, `splitPart`, `tag`, `thicken`, `transform`, `trimCurve`, `variableStudioAssignVariable`, `wrap`.
 
-\* sketching on a part face works locally but Onshape's sketch axes on faces may differ; scripts use
-offset planes (`cPlane`) instead.
+\* on a part face, script coordinates start at the world origin projected onto the face, with the axes of the
+parallel default plane (y = normal × x). Onshape's sketch there has the same origin but the face's own x-axis, which
+depends on how the face was made, so the push measures it (1 call per face sketch sent) and turns the sketch.
+Pick faces by feature (`qCapEntity`, `qNonCapEntity` + `qParallelPlanes`), not by point: point queries are fixed
+numbers in Onshape and lose the face when a variable moves it. Example: `examples/native/face_sketches.fs`.
 
 ## Local builder (`fsgen/native/local.py`)
 
@@ -88,13 +91,14 @@ of phase or turned left-handed, 0.1 mm flank gap with 0.2 mm radial clearance.
 What it does:
 - sketches: lines, arcs, circles, rectangles, polylines, regular polygons, construction geometry, regions
   (incl. "drop inner loops"); default planes with Onshape's axis conventions, offset planes, planar faces
+  (fsgen's face frame, see above)
 - extrude, revolve, loft, fillet, chamfer (equal), shell, offset plane, booleans, delete
 - threads: helix (on a sketch circle or around an axis; turns/pitch/height, handedness) and solid sweep along
   any connected edges (helix: Frenet frame = exact screw motion; other paths: corrected Frenet)
 - feature patterns (linear, circular, mirror; also patterns of patterns) and part patterns
 - queries: the FeatureScript query functions used by scripts (qCreatedBy with provenance through booleans and
   fillets, qSketchRegion, sketchEntityQuery, qParallelEdges, qContainsPoint, qCoincidesWithPlane, qGeometry,
-  qLargest, qFarthestAlong, …)
+  qLargest, qFarthestAlong, qCapEntity, qNonCapEntity, qParallelPlanes, …)
 - Onshape behaviours: REMOVE that cuts nothing → warning (Onshape INFO); empty selections → error (Onshape
   ERROR); kernel-only failures → warning, not a false error
 - sketch edges and the part's edges are separate entities (an extrude's end face reuses the sketch's edges)
