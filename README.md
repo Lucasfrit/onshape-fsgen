@@ -178,12 +178,21 @@ Also: **STEP → editable tree** (`fsgen recognize part.step`) using
 | `fsgen studio fit file.fs` | parts in their assembled position: overlaps, hinge/slide motions, snap fits | 0 |
 | `fsgen studio view file.fs` | interactive 3D viewer (HTML): print layout and assembly | 0 |
 | `fsgen studio paste file.fs` | custom feature to paste (clipboard) | 0 |
-| `fsgen studio push file.fs` | create / update the native tree incrementally | as estimated |
+| `fsgen studio push file.fs [--document URL]` | create / update the native tree incrementally | as estimated |
 | `fsgen recognize part.step` | STEP → editable Part Studio script | 0 |
 | `fsgen features [type]` | feature catalog / one feature's parameters | 0 |
 | `fsgen usage` | API calls used and left | 0 |
 
 All commands and options: [docs/REFERENCE.md](docs/REFERENCE.md).
+
+## What's new
+
+- Sketches on part faces, driven by variables like sketches on planes.
+- Variables now move every sketch line, polyline and arc point, not only rectangles and circles.
+- `--document <Onshape URL>`: build in your own document.
+- Multi-part designs: fit check (`studio fit`), 3D viewer (`studio view`) and a print check, all offline.
+
+Full list: [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 
@@ -192,6 +201,7 @@ All commands and options: [docs/REFERENCE.md](docs/REFERENCE.md).
   (undocumented quirks, call accounting, what costs what). Useful even if you don't use fsgen.
 - [docs/REFERENCE.md](docs/REFERENCE.md): commands, the script dialect, rules, adding features.
 - [rules.md](rules.md): the modelling rules the LLM follows (edit to taste).
+- [CHANGELOG.md](CHANGELOG.md): what changed in each version.
 
 ## Status and limitations
 

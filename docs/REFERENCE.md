@@ -19,6 +19,7 @@ too); 4xx/5xx, browser use and public App Store apps are free ([Onshape API limi
 |---|---|
 | new Part Studio | 1 |
 | each feature (variable, sketch, extrude, …) | 1 |
+| sketch on a part face | +1 (measures Onshape's axes on the face) |
 | re-push unchanged script | 0 |
 | re-push after editing a dimension/variable | 1 per changed feature + 1 status check |
 | feature fails in Onshape | +1 (diagnosis); the fix updates it in place (1) |
@@ -26,7 +27,7 @@ too); 4xx/5xx, browser use and public App Store apps are free ([Onshape API limi
 | export via API: STL / STEP | 1 / ~4 (or free from the Onshape UI) |
 
 `generate` is **local-first**: the script is checked, built, repaired and reviewed with the local builder
-(`fsgen/native/local.py`, matches Onshape's volume on all 7 reference parts), then pushed to Onshape once and
+(`fsgen/native/local.py`, matches Onshape's volume on all 8 reference parts), then pushed to Onshape once and
 confirmed with one massproperties call. Variables go into one Variable Studio (3 calls for any number;
 `FSGEN_VARIABLES=tree` puts them in the feature tree instead, 1 call each). Measured: the pillow block
 (9 features, 5 variables) cost 14 calls in total. Exports are opt-in (`--export step,stl`); local STEP/STL

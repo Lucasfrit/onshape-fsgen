@@ -20,12 +20,14 @@ new features get learned.
 | create Part Studio | Onshape | 1 |
 | variables (one Variable Studio, any number) | Onshape | 3 first time, then 1 per change |
 | each feature (sketch, extrude, fillet, …) | Onshape | 1 |
+| sketch on a part face: measure Onshape's axes on the face | Onshape | +1 per face sketch sent |
 | feature fails in Onshape → diagnosis | Onshape | 1 (fix = 1 in-place update) |
 | confirm Onshape volume = local volume | Onshape | 1 |
 | Onshape render (only if local result was partial or differs) | Onshape | 0–1 |
 | local STEP/STL/PNG, copy to Dropbox | local | 0 |
 | STEP/STL export via the API (opt-in `--export`) | Onshape | STEP ~4, STL 1 (the Onshape UI exports for free) |
 | editing a dimension later and re-pushing | Onshape | 1 per changed feature (+1 status check); unchanged = 0 |
+| changing a variable in Onshape's Variable Studio by hand | Onshape UI | 0 (sketches follow their dimensions) |
 | STEP → editable script (`fsgen recognize`) | local (featuretree) | 0 (push = features + 2) |
 | paste version (custom feature, `fsgen studio paste` / `generate --paste`) | you paste it in the Onshape UI | **0** |
 
@@ -81,6 +83,7 @@ Accuracy against Onshape (`tests/test_native_local.py`):
 | NEMA 17 mount (LLM-generated, 23 features) | 19831.865 | 19831.865 | 0 |
 | fan adapter (LLM-generated, loft, linear pattern) | 43299.793 | 43299.838 | +0.0001 % |
 | pillow block (LLM-generated) | 34408.184 | 34408.184 | 0 |
+| face sketches (sketches on 3 part faces, cuts) | 6932.246 | 6932.246 | 0 (also after a Variable Studio edit) |
 
 Threads (helix + sweep) are not yet measured in Onshape. Locally they are checked against exact values instead:
 a profile swept along a helix is a screw motion, so its volume is area × centroid radius × swept angle (local
