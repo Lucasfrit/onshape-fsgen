@@ -86,8 +86,10 @@ In a chat, any coding assistant can be the designer instead: see `AGENTS.md`.
 | `fsgen recognize part.step` | STEP → editable Part Studio script via featuretree recognition (0 calls) |
 | `fsgen usage [--set-official N]` | API calls used/left |
 | `fsgen spec` | print the instructions/spec the designer follows (rules, catalog, examples) |
-| `fsgen studio check script.fs` | trace + build locally (0 calls): features, geometry report, errors |
+| `fsgen studio check script.fs` | trace + build locally (0 calls): features, geometry report, errors, print check (overhangs flatter than 45° off the bed) |
 | `fsgen studio build script.fs` | local build + STEP/STL/PNG in `out/<name>/` (0 calls) |
+| `fsgen studio fit script.fs [--fit F]` | assembled-position check from `script.fit.toml` (0 calls): parts moved from the print layout into place, components (STEP files, cylinders, boxes), overlaps, and motions (hinge turned, part slid off) with free/snap/blocked/collides verdicts; writes `out/<name>/<name>_assembled.step`. Format: `fsgen/native/fit.py`, example: `examples/native/fit/` |
+| `fsgen studio view script.fs [--fit F]` | interactive 3D viewer `out/<name>/<name>_view.html` (0 calls): print layout and, with a fit file, the assembly; hide parts, cut along X/Y/Z |
 | `fsgen studio push script.fs [--name N] [--fresh] [--export]` | build/update the Part Studio incrementally (only from the first changed feature) |
 | `fsgen features [type] [--all] [--refresh]` | feature catalog / one feature's settable parameters |
 | `fsgen generate --custom "<request>" [--cloud]` | older single-custom-feature mode with local OCCT build/repair/review |

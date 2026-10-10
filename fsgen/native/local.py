@@ -370,13 +370,17 @@ class LocalBuilder:
 
     def _edge_groups(self, qt, what):
         groups: dict = {}
+        skipped = 0
         for e in self.query(qt):
             if e.body is None or e.body.kind != "solid":
+                skipped += 1
                 continue
             edges = [e.shape] if e.kind == "EDGE" else G.subshapes(e.shape, G.TopAbs_EDGE) if e.kind == "FACE" else []
             groups.setdefault(id(e.body), (e.body, []))[1].extend(edges)
         if not groups:
-            raise FSError(f"{what}: \"entities\" selects no edges (Onshape: FILLET_SELECT_EDGES)")
+            hint = (f"; it matched {skipped} sketch entit{'y' if skipped == 1 else 'ies'} only - query the part's "
+                    "edges, e.g. qCreatedBy(id + \"<feature>\", EntityType.EDGE)") if skipped else ""
+            raise FSError(f"{what}: \"entities\" selects no edges (Onshape: FILLET_SELECT_EDGES){hint}")
         return list(groups.values())
 
     def _modify(self, oid, groups, fn):
@@ -386,7 +390,7 @@ class LocalBuilder:
             try:
                 shape, h = fn(body.shape, items)
             except FSError as e:
-                raise KernelFailure(str(e))
+                raise KernelFailure(f"{e} [{len(items)} edge(s)/face(s) on one part]")
             hists.append(h)
             removed.append(body)
             new += [Body(s, body.creator) for s in G.solids_of(shape)]

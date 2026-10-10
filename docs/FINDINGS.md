@@ -275,3 +275,29 @@ LLM timeout `FSGEN_LLM_TIMEOUT` (default 30 min). The git repository now exists;
 - If you belong to a company or classroom plan, usage is tracked at that level, and keys created under
   *My Account → Developer* may not appear in the company's usage table. (search summary of the help/forum;
   unverified)
+
+## Ferrite clamp and current-clamp coil former (2026-10-08)
+
+- Hinged and snapping parts can't be judged from the 4-view preview: the parts are laid out in print orientation.
+  What worked: put the parts in their closed position, add the real component (the user's STEP of the ferrite)
+  and measure the overlap volume between them in the closed position, while turning the hinge in steps and over
+  the last few degrees, and while sliding parts off. That caught a latch slot that had cut off its own hook (the
+  local build was clean, but there was no snap at all). A snap shows as a small overlap (0.1–0.8 mm³) in the
+  last 2–4°; turning the wrong way shows as hundreds of mm³ at 90°. Now `fsgen studio fit` with a
+  `<script>.fit.toml` (bounding-box pre-check makes it ~7 s for a 7-part clamp; the scratch version took
+  minutes). (tested)
+- Parts that print in different orientations (a flat shell and a former standing on its end) need a world map
+  with the right handedness: if one half's own coordinates are the mirror image of the other's, its print-frame
+  map must have determinant −1, or the printed part is mirrored. `fsgen studio fit` rejects mirror placements.
+- Local builder: an extrude's end face reuses the sketch's edges (same TShape), and entity equality compared only
+  the shape, so `qContainsPoint(qEverything(EntityType.EDGE), …)` deduplicated the solid edge away in favour of the
+  sketch edge and the chamfer got no edges. Entities now also compare the owning body (as in Onshape, where sketch
+  and part edges are different entities), and selecting only sketch edges says so. (tested, `tests/test_fit.py`)
+- OCCT refused a 0.8 mm chamfer on the coil former's end-wall edges with the model in meters (the local builder's
+  units) but built it on the same model scaled to millimeters. Fillets and chamfers now retry once at 1000× scale;
+  the operation history is chained through both scale copies so later `qCreatedBy` queries still work. Onshape was
+  not asked. (tested locally)
+- Print check (`fsgen studio check/build`): downward faces flatter than 45° that are not on the bed, per face with
+  area, height and size. Exactly-45° chamfers need a 0.5° allowance or meshing noise flags them. (tested)
+- Artifacts (claude.ai pages) serve no binary files (`.stl` refused), so the 3D viewer embeds the meshes as base64
+  text. `fsgen studio view` writes a single self-contained HTML file. (tested)

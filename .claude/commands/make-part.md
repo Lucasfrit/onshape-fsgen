@@ -14,7 +14,12 @@ Follow the "Making a part" workflow in AGENTS.md:
 3. Run `.venv/bin/fsgen studio build parts/<short-name>.fs`. Fix errors and warnings, then look at the
    preview `out/<short-name>/<short-name>.png` and check it against the request (size, holes, fillets, one part).
    Features listed as "not built locally" are NOT in the preview: say so, don't claim they are checked.
-   For printed parts follow the 3D-printing rules (clearances, print orientation, snap fits).
+   For printed parts follow the 3D-printing rules (clearances, print orientation, snap fits) and read the print
+   check the build prints (overhangs flatter than 45° off the bed).
+   Several parts that go together (hinge, snap fit, lid, a part around a real component the user supplied as STEP):
+   write `parts/<short-name>.fit.toml` (format: `fsgen/native/fit.py`, example `examples/native/fit/`) and run
+   `.venv/bin/fsgen studio fit parts/<short-name>.fs`; give each motion an `expect`. Fix overlaps before showing
+   the result. `.venv/bin/fsgen studio view parts/<short-name>.fs` writes an interactive 3D viewer to show the user.
    Repeat until it is right. This step costs no Onshape calls.
 4. Show the user the result (key dimensions, parameters, preview path) and the push estimate the command printed.
    Then ask: paste (free) or push as a native tree (costs the estimated calls)?

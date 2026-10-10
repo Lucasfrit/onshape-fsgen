@@ -170,7 +170,9 @@ Also: **STEP → editable tree** (`fsgen recognize part.step`) using
 | command | what it does | Onshape calls |
 |---|---|---|
 | `fsgen generate "…" [--paste] [--llm-command "…"]` | prompt → script → local build/review → paste file or native tree | 0 / ≈ features + 5 |
-| `fsgen studio build file.fs` | local build: STEP, STL, preview, cost estimate | 0 |
+| `fsgen studio build file.fs` | local build: STEP, STL, preview, print check, cost estimate | 0 |
+| `fsgen studio fit file.fs` | parts in their assembled position: overlaps, hinge/slide motions, snap fits | 0 |
+| `fsgen studio view file.fs` | interactive 3D viewer (HTML): print layout and assembly | 0 |
 | `fsgen studio paste file.fs` | custom feature to paste (clipboard) | 0 |
 | `fsgen studio push file.fs` | create / update the native tree incrementally | as estimated |
 | `fsgen recognize part.step` | STEP → editable Part Studio script | 0 |
