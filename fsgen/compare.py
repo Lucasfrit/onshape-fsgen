@@ -7,6 +7,7 @@ from pathlib import Path
 from . import cloud
 from .fslite.runner import run_source
 from .onshape import Onshape, OnshapeError, RateLimited
+from .paths import DATA
 
 
 def close(a, b, rel=1e-4, abs_=1e-3) -> bool:
@@ -74,12 +75,12 @@ def main(paths: list[Path], out: Path | None = None):
     if out:
         out.write_text(json.dumps(rows, indent=2, default=str))
     # Record Onshape's numbers as golden values for the offline regression tests.
-    golden_path = Path(__file__).resolve().parent.parent / "examples" / "compat" / "golden.json"
+    golden_path = DATA / "examples" / "compat" / "golden.json"
     golden = json.loads(golden_path.read_text()) if golden_path.exists() else {}
-    for r in rows:
-        if r.get("match") and str(Path(r["path"]).resolve().parent) == str(golden_path.parent):
-            golden[r["file"]] = r["cloud"]
-    golden_path.write_text(json.dumps(dict(sorted(golden.items())), indent=2))
+    new = {r["file"]: r["cloud"] for r in rows
+           if r.get("match") and str(Path(r["path"]).resolve().parent) == str(golden_path.parent)}
+    if new:  # only files from examples/compat/ (in an installed package: nothing to update)
+        golden_path.write_text(json.dumps(dict(sorted({**golden, **new}.items())), indent=2))
     return rows
 
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0 (2026-10-11)
+
+### Added
+
+- **API guard**: a macOS notification after every run that used the Onshape API (calls, purpose, today's and
+  the year's total); a daily cap across all runs (`FSGEN_DAILY_BUDGET`); `fsgen keys store` keeps the API keys
+  in the macOS Keychain, where macOS asks before each run that reads them. `fsgen usage` shows today's calls.
+- **Install without the repo:** `uv tool install onshape-fsgen` (or `pipx`). The wheel bundles the default rules,
+  the reference examples and featuretree; the feature catalog and specs were missing from earlier wheels.
+- **Claude Code plugin:** `/plugin marketplace add Lucasfrit/onshape-fsgen`, then
+  `/plugin install onshape-fsgen@onshape-fsgen`. Its `make-part` skill runs the part workflow in any folder.
+- `fsgen rules [--init]`: your own `~/.config/fsgen/rules.md` replaces the default rules.
+- `fsgen spec --fit` prints the fit file format; `fsgen --version`.
+
+### Changed
+
+- PyPI/distribution name `onshape-fsgen` (the command and the Python package are still `fsgen`).
+- `.env` is found from the working directory (and its parents), then `~/.config/fsgen/.env`. Before, `.env` was
+  searched from the installed package's folder, so an installed fsgen did not find it.
+- The API call ledger moves to `~/.config/fsgen/api_ledger.jsonl`, so all folders share one count; an existing
+  `.fsgen_api_ledger.jsonl` in the working directory is still used. `fsgen usage --set-official` writes the baseline
+  to the `.env` next to the ledger.
+- A push stopped by the daily cap or a run budget says so and how to continue (pushing again resumes; the
+  features already sent are not re-sent) instead of printing a traceback.
+- CI: offline tests on Python 3.11–3.14, and a check that the built wheel works outside the repo.
+
 ## 0.2.0 (2026-10-10)
 
 ### Added

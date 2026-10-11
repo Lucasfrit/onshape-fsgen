@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-EXAMPLES = ROOT / "examples" / "native"
-RULES = ROOT / "rules.md"
+from ..paths import DATA, config_dir
+
+EXAMPLES = DATA / "examples" / "native"
+DEFAULT_RULES = DATA / "rules.md"
 FEW_SHOT = ["plate.fs", "l_bracket.fs", "flange.fs", "enclosure.fs"]
 
 SPEC = r"""
@@ -131,16 +132,28 @@ Select edges for fillets/chamfers geometrically (qContainsPoint with a point ON 
 """
 
 
+def user_rules_path() -> Path:
+    return config_dir() / "rules.md"
+
+
+def rules_path() -> Path:
+    """The user's own rules.md (`fsgen rules --init` creates it) if there is one, else the bundled default."""
+    user = user_rules_path()
+    return user if user.exists() else DEFAULT_RULES
+
+
 def rules_text() -> str:
-    return RULES.read_text().strip() if RULES.exists() else ""
+    path = rules_path()
+    return path.read_text().strip() if path.exists() else ""
 
 
 def system_prompt() -> str:
     from .catalog import prompt_section
 
     parts = [SPEC.strip()]
-    if rules_text():
-        parts.append("\n# The user's general rules (always follow these; they override defaults above)\n" + rules_text())
+    rules = rules_text()
+    if rules:
+        parts.append("\n# The user's general rules (always follow these; they override defaults above)\n" + rules)
     parts.append("\n" + prompt_section())
     parts.append("\n# Reference scripts (verified in Onshape)")
     for name in FEW_SHOT:

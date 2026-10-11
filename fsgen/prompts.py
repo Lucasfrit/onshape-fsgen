@@ -1,9 +1,9 @@
 """Prompts for generating FS-Lite FeatureScript with an LLM."""
 from __future__ import annotations
 
-from pathlib import Path
+from .paths import DATA
 
-EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples" / "compat"
+EXAMPLES_DIR = DATA / "examples" / "compat"
 FEW_SHOT = ["l_bracket.fs", "patterns_transforms.fs", "revolve_pulley.fs"]
 
 SPEC = r"""

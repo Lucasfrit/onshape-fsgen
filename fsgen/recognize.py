@@ -14,7 +14,9 @@ from pathlib import Path
 
 import numpy as np
 
-FT = Path(__file__).resolve().parent.parent / "third_party" / "featuretree"
+from .paths import DATA
+
+FT = DATA / "third_party" / "featuretree"
 HEADER = 'FeatureScript 3083;\nimport(path : "onshape/std/common.fs", version : "3083.0");\n\n'
 # default plane -> (sketch x, sketch y, normal) in world coordinates (Onshape conventions)
 PLANES = {"Top": ((1, 0, 0), (0, 1, 0), (0, 0, 1)), "Front": ((1, 0, 0), (0, 0, 1), (0, -1, 0)),

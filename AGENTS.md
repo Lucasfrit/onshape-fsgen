@@ -7,8 +7,8 @@ write the Part Studio script, fsgen checks it, builds it locally and delivers it
 
 ## Making a part
 
-1. Run `.venv/bin/fsgen spec`: the script dialect, the user's `rules.md`, the feature catalog and verified
-   examples. Follow it.
+1. Run `.venv/bin/fsgen spec`: the script dialect, the user's rules (`fsgen rules` shows which file), the
+   feature catalog and verified examples. Follow it.
 2. If the request names a real product, look up its dimensions first (if you can browse). List your
    assumptions (every dimension or interpretation the request doesn't state) and show them to the user.
 3. Write `parts/<name>.fs` (a Part Studio script).
@@ -19,7 +19,7 @@ write the Part Studio script, fsgen checks it, builds it locally and delivers it
    build prints a print check (overhangs flatter than 45° off the bed).
    Parts that go together (hinges, snap fits, lids, a part around a real component): write
    `parts/<name>.fit.toml` and run `fsgen studio fit parts/<name>.fs` (assembled-position overlaps and motions,
-   format in `fsgen/native/fit.py`). `fsgen studio view parts/<name>.fs` writes an interactive 3D viewer.
+   format: `fsgen spec --fit`). `fsgen studio view parts/<name>.fs` writes an interactive 3D viewer.
 5. Deliver: `fsgen studio paste parts/<name>.fs --name "…"` (custom feature to paste, 0 calls) or
    `fsgen studio push parts/<name>.fs --name "…" --metrics --budget N` (native editable tree; ask first and show
    the estimate). Edits to a pushed part: change the script and push again (1–2 calls).

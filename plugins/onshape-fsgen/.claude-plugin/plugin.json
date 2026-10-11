@@ -1,0 +1,10 @@
+{
+  "name": "onshape-fsgen",
+  "version": "0.3.0",
+  "description": "Design parts as native, editable Onshape feature trees: Claude writes the Part Studio script, fsgen checks and previews it locally (0 API calls), then pastes or pushes it to Onshape.",
+  "author": { "name": "Lucasfrit", "url": "https://github.com/Lucasfrit" },
+  "homepage": "https://github.com/Lucasfrit/onshape-fsgen",
+  "repository": "https://github.com/Lucasfrit/onshape-fsgen",
+  "license": "MIT",
+  "keywords": ["onshape", "cad", "featurescript", "3d-printing"]
+}

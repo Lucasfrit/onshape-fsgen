@@ -105,26 +105,42 @@ Requirements: Python 3.11–3.14 (tested on 3.12 and 3.14), an Onshape account w
 do the designing (see [Which AI?](#which-ai) — Claude works out of the box).
 
 ```bash
-git clone https://github.com/Lucasfrit/onshape-fsgen && cd onshape-fsgen
-python3.14 -m venv .venv && .venv/bin/pip install -e . pytest   # or python3.12 / 3.13
-cp .env.example .env          # add your Onshape API keys
-.venv/bin/pytest              # offline test suite, no API calls
+uv tool install onshape-fsgen      # or: pipx install onshape-fsgen
 ```
 
-**In a chat with your coding assistant** (you steer between iterations). In Claude Code:
+Put your Onshape API keys in `~/.config/fsgen/.env` (or a `.env` in the folder you work in); the format is in
+[.env.example](.env.example).
+
+**In a chat with Claude Code** (you steer between iterations): add the plugin once,
 
 ```
-/make-part a 60 x 40 x 5 mm mounting plate with four 4.5 mm holes 6 mm from the corners and 3 mm corner fillets
+/plugin marketplace add Lucasfrit/onshape-fsgen
+/plugin install onshape-fsgen@onshape-fsgen
+```
+
+then, in any folder, ask for a part (or just describe it; the skill starts on its own):
+
+```
+/onshape-fsgen:make-part a 60 x 40 x 5 mm mounting plate with four 4.5 mm holes 6 mm from the corners and 3 mm corner fillets
 ```
 
 Other assistants (Codex, Cursor, Copilot, Gemini CLI, …) read the same workflow from
-[AGENTS.md](AGENTS.md): ask them to "make a part: …" in this folder.
+[AGENTS.md](AGENTS.md): ask them to "make a part: …" in a clone of this repo.
 
 **Or with one command:**
 
 ```bash
-.venv/bin/fsgen generate "…description…" --paste --name "My part"      # 0 API calls → paste_feature.fs
-.venv/bin/fsgen generate "…description…" --name "My part" --budget 40  # native feature tree in Onshape
+fsgen generate "…description…" --paste --name "My part"      # 0 API calls → paste_feature.fs
+fsgen generate "…description…" --name "My part" --budget 40  # native feature tree in Onshape
+```
+
+**From source** (to change fsgen; Claude Code's `/make-part` in this folder uses the checkout):
+
+```bash
+git clone https://github.com/Lucasfrit/onshape-fsgen && cd onshape-fsgen
+python3.14 -m venv .venv && .venv/bin/pip install -e . pytest   # or python3.12 / 3.13
+cp .env.example .env          # add your Onshape API keys
+.venv/bin/pytest              # offline test suite, no API calls
 ```
 
 To paste: create a Feature Studio in Onshape, paste the file, and insert the feature in a Part Studio.
@@ -136,7 +152,7 @@ building and talking to Onshape is done by fsgen.
 
 | how you work | AI | setup |
 |---|---|---|
-| chat with a coding assistant | Claude Code (`/make-part`), Codex, Cursor, Copilot, Gemini CLI, … | none: they follow [AGENTS.md](AGENTS.md) and run `fsgen spec` / `fsgen studio build` / `paste` / `push` |
+| chat with a coding assistant | Claude Code (plugin skill `make-part`), Codex, Cursor, Copilot, Gemini CLI, … | none: they follow [AGENTS.md](AGENTS.md) and run `fsgen spec` / `fsgen studio build` / `paste` / `push` |
 | one command, `fsgen generate` | Claude (default) | logged-in `claude` CLI, or `ANTHROPIC_API_KEY` |
 | one command, `fsgen generate` | any LLM with a command-line tool: local models via Ollama, Gemini CLI, `llm`, … | `FSGEN_LLM_COMMAND="ollama run qwen2.5-coder:32b"` (prompt on stdin, answer on stdout) |
 | by hand | you | write the script yourself; `fsgen studio build` checks it |
@@ -182,6 +198,7 @@ Also: **STEP → editable tree** (`fsgen recognize part.step`) using
 | `fsgen recognize part.step` | STEP → editable Part Studio script | 0 |
 | `fsgen features [type]` | feature catalog / one feature's parameters | 0 |
 | `fsgen usage` | API calls used and left | 0 |
+| `fsgen keys store` | keep the Onshape keys in the macOS Keychain instead of `.env` | 0 |
 
 All commands and options: [docs/REFERENCE.md](docs/REFERENCE.md).
 
@@ -200,7 +217,8 @@ Full list: [CHANGELOG.md](CHANGELOG.md).
 - [docs/FINDINGS.md](docs/FINDINGS.md): Onshape API and FeatureScript behaviours discovered along the way
   (undocumented quirks, call accounting, what costs what). Useful even if you don't use fsgen.
 - [docs/REFERENCE.md](docs/REFERENCE.md): commands, the script dialect, rules, adding features.
-- [rules.md](rules.md): the modelling rules the LLM follows (edit to taste).
+- [rules.md](rules.md): the default modelling rules the AI follows. `fsgen rules --init` copies them to
+  `~/.config/fsgen/rules.md` for you to edit.
 - [CHANGELOG.md](CHANGELOG.md): what changed in each version.
 
 ## Status and limitations

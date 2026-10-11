@@ -4,6 +4,9 @@ Follow **`AGENTS.md`** (the shared instructions for all AI assistants: making a 
 documentation). Claude-specific additions:
 
 - `/make-part <description>` (`.claude/commands/make-part.md`) runs the part workflow from `AGENTS.md`.
+  The plugin skill `plugins/onshape-fsgen/skills/make-part/SKILL.md` is the same workflow for installed users
+  (`fsgen` on PATH, no repo paths): change both together. Keep `version` in
+  `plugins/onshape-fsgen/.claude-plugin/plugin.json` equal to `pyproject.toml`.
 - `fsgen generate` uses Claude by default: the logged-in `claude` CLI, or the Anthropic API if
   `ANTHROPIC_API_KEY` is set.
 

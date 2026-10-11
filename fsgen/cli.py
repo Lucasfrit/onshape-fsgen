@@ -199,16 +199,22 @@ def cmd_studio(args):
                 open_in_freecad(files[0])
         print(f"({loc.seconds * 1000:.0f} ms, 0 Onshape calls)")
         return 0 if loc.ok else 1
-    from .onshape import Onshape
+    from .onshape import BudgetExceeded, Onshape
 
     if args.budget is not None and est.total > args.budget:
         print(f"refusing to push: estimate {est.total} exceeds --budget {args.budget}")
         return 1
     o = Onshape(purpose=f"studio push {path.name}")
     from .cloud import target_workspace
-    ws = target_workspace(o, args.document)
-    st = nb.get_studio(o, args.name or path.stem, ws["did"], ws["wid"], fresh=args.fresh)
-    r = nb.push_trace(o, st, tr)
+    try:
+        ws = target_workspace(o, args.document)
+        st = nb.get_studio(o, args.name or path.stem, ws["did"], ws["wid"], fresh=args.fresh)
+        r = nb.push_trace(o, st, tr)
+    except BudgetExceeded as e:
+        print(f"stopped: {e}")
+        print("the features sent so far are saved: push again to continue from there (they are not re-sent)")
+        print(o.summary())
+        return 3
     from .native import catalog
     if r.ok:
         learned = catalog.record_success(tr.features, path.read_text(), str(path))
@@ -268,9 +274,40 @@ def cmd_recognize(args):
 
 def cmd_spec(args):
     """The instructions the LLM gets (dialect spec + rules.md + feature catalog + verified examples)."""
+    if args.fit:
+        from .native import fit
+        print(fit.__doc__.strip())
+        return 0
     from .native import prompts
     print(prompts.system_prompt())
     return 0
+
+
+def cmd_rules(args):
+    """Which rules.md the designer follows; --init copies the bundled default to the user's config to edit."""
+    import shutil
+    from .native import prompts
+
+    user = prompts.user_rules_path()
+    if args.init:
+        if user.exists():
+            print("already there:", user)
+            return 1
+        user.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(prompts.DEFAULT_RULES, user)
+        print("copied the default rules to", user, "- edit it; `fsgen spec` and `fsgen generate` use it from now on")
+        return 0
+    path = prompts.rules_path()
+    print(path, "(your rules)" if path == user else f"(the default; `fsgen rules --init` copies it to {user} to edit)")
+    return 0
+
+
+def _version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        return version("onshape-fsgen")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def cmd_usage(args):
@@ -282,12 +319,45 @@ def cmd_usage(args):
         print(f"recorded official count {args.set_official} (from the MCP get_api_usage tool) as the new baseline")
     a = allocation_status()
     print(f"Onshape API allocation: {a.used} / {a.allocation} used ({a.used / a.allocation:.0%}); {a.left} left")
+    from .onshape import calls_today
+    cap = os.environ.get("FSGEN_DAILY_BUDGET")
+    print(f"today: {calls_today()} calls" + (f" (daily cap {cap})" if cap else " (no daily cap: FSGEN_DAILY_BUDGET)"))
     if a.logged:
         purposes, calls = breakdown(a.logged, args.top)
         print("logged since baseline by command:", ", ".join(f"{k} {v}" for k, v in purposes))
         print("top endpoints:")
         for k, v in calls:
             print(f"  {v:5d}  {k}")
+    return 0
+
+
+def cmd_keys(args):
+    """Move the Onshape API keys from .env into the macOS Keychain, or show where they come from."""
+    import re
+    from dotenv import find_dotenv
+    from .onshape import keychain_has_keys, keychain_store
+    from .paths import config_dir, load_env
+
+    load_env()
+    envs = [Path(f) for f in (find_dotenv(usecwd=True), config_dir() / ".env") if f and Path(f).exists()]
+    ak, sk = os.environ.get("ONSHAPE_ACCESS_KEY"), os.environ.get("ONSHAPE_SECRET_KEY")
+    if args.action == "status":
+        print("keys in .env / environment:", "yes" if ak and sk else "no")
+        print("keys in the macOS Keychain (fsgen-onshape):", "yes" if keychain_has_keys() else "no")
+        if ak and sk:
+            print("fsgen uses the .env keys; `fsgen keys store` moves them into the Keychain")
+        return 0
+    if not (ak and sk):
+        print("no keys in .env to store: put ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY in .env first")
+        return 1
+    keychain_store(ak, sk)
+    for env in envs:
+        text = env.read_text()
+        for key in ("ONSHAPE_ACCESS_KEY", "ONSHAPE_SECRET_KEY"):
+            text = re.sub(rf"^{key}=.*$", f"{key}=  # in the macOS Keychain (fsgen keys store)", text, flags=re.M)
+        env.write_text(text)
+    print("stored in the macOS Keychain as \"fsgen-onshape\" and removed from .env.")
+    print("macOS now asks before each run that calls Onshape: click Allow (not Always Allow) to keep that check.")
     return 0
 
 
@@ -392,6 +462,7 @@ def cmd_watch(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="fsgen", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--version", action="version", version=f"fsgen {_version()}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     g = sub.add_parser("generate", help="prompt -> FeatureScript -> geometry")
@@ -461,13 +532,22 @@ def main(argv=None):
     rc.set_defaults(fn=cmd_recognize)
 
     sp = sub.add_parser("spec", help="print the Part Studio script spec, rules, catalog and examples")
+    sp.add_argument("--fit", action="store_true", help="print the fit file format (parts/<name>.fit.toml) instead")
     sp.set_defaults(fn=cmd_spec)
+
+    ru = sub.add_parser("rules", help="show which rules.md is used; --init makes your own copy to edit")
+    ru.add_argument("--init", action="store_true", help="copy the default rules to your config folder")
+    ru.set_defaults(fn=cmd_rules)
 
     us = sub.add_parser("usage", help="Onshape API calls used vs. the annual allocation")
     us.add_argument("--top", type=int, default=12)
     us.add_argument("--set-official", type=int, metavar="N",
                     help="record Onshape's official used count (e.g. from the MCP get_api_usage tool) as the baseline")
     us.set_defaults(fn=cmd_usage)
+
+    ks = sub.add_parser("keys", help="Onshape API keys: move them from .env into the macOS Keychain, or show status")
+    ks.add_argument("action", choices=["store", "status"])
+    ks.set_defaults(fn=cmd_keys)
 
     fe = sub.add_parser("features", help="feature catalog: verified / learned / available")
     fe.add_argument("feature", nargs="?", help="show one feature type with its settable parameters")
@@ -481,7 +561,13 @@ def main(argv=None):
     c.set_defaults(fn=cmd_compare)
 
     args = ap.parse_args(argv)
-    sys.exit(args.fn(args))
+    from .onshape import BudgetExceeded
+    try:
+        code = args.fn(args)
+    except BudgetExceeded as e:
+        print(f"stopped: {e}")
+        code = 3
+    sys.exit(code)
 
 
 if __name__ == "__main__":

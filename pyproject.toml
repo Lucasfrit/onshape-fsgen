@@ -1,19 +1,64 @@
 [project]
-name = "fsgen"
-version = "0.2.0"
-description = "Prompt -> Onshape FeatureScript -> local OpenCascade preview and Onshape export"
+name = "onshape-fsgen"
+version = "0.3.0"
+description = "Part descriptions -> native, editable Onshape feature trees, checked and previewed locally first"
 requires-python = ">=3.11,<3.15"
+license = "MIT"
+license-files = ["LICENSE", "third_party/featuretree/LICENSE"]
+authors = [{ name = "Lucasfrit" }]
+keywords = ["onshape", "featurescript", "cad", "3d-printing", "llm", "claude-code"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
 dependencies = ["build123d>=0.9", "requests", "python-dotenv", "anthropic", "matplotlib", "numpy"]
+dynamic = ["readme"]
+
+[project.urls]
+Homepage = "https://github.com/Lucasfrit/onshape-fsgen"
+Issues = "https://github.com/Lucasfrit/onshape-fsgen/issues"
+Changelog = "https://github.com/Lucasfrit/onshape-fsgen/blob/main/CHANGELOG.md"
 
 [project.scripts]
 fsgen = "fsgen.cli:main"
 
 [build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.27", "hatch-fancy-pypi-readme>=24"]
+build-backend = "hatchling.build"
 
-[tool.setuptools.packages.find]
-include = ["fsgen*"]
+[tool.hatch.build.targets.wheel]
+packages = ["fsgen"]
+
+# Data that lives at the repo root, bundled into the wheel under fsgen/data/ (see fsgen/paths.py).
+[tool.hatch.build.targets.wheel.force-include]
+"rules.md" = "fsgen/data/rules.md"
+"examples/native" = "fsgen/data/examples/native"
+"examples/compat" = "fsgen/data/examples/compat"
+"third_party/featuretree" = "fsgen/data/third_party/featuretree"
+
+[tool.hatch.build.targets.sdist]
+include = ["fsgen", "tests", "examples/native", "examples/compat", "third_party/featuretree/**/*.py",
+           "third_party/featuretree/LICENSE", "/rules.md", "/README.md", "/CHANGELOG.md", "/LICENSE"]
+
+# PyPI shows the README without the repo: point relative links and images at GitHub.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'src="(?!https?://)([^"]+)"'
+replacement = 'src="https://raw.githubusercontent.com/Lucasfrit/onshape-fsgen/main/\1"'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|#)([^)]+)\)'
+replacement = '](https://github.com/Lucasfrit/onshape-fsgen/blob/main/\1)'
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

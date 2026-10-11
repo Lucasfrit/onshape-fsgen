@@ -359,3 +359,18 @@ A Claude agent in another project built a part with fsgen and reported what got 
 - Official usage (MCP `get_api_usage`) was 1166 when fsgen's ledger said 741: about 425 calls came from outside
   fsgen (the MCP server, other sessions or apps). Recalibrated with `fsgen usage --set-official 1166`. Two MCP doc
   searches followed; whether they counted was not measured.
+
+## Where the unlogged calls came from (2026-10-11)
+
+- Onshape's official count (1166) was about 425 above fsgen's ledger. Checked locally, without API calls:
+  only 3 Onshape MCP calls were ever made from this machine (all on 2026-10-10), and no other Claude session ran
+  Onshape commands. The ledger itself only started on 2026-10-01 at 16:28, minutes after Onshape's "25 %" e-mail
+  (697 used). Before that, the first development session made heavy unlogged calls (a scan of the user's
+  documents with paging, the compat suite against Onshape, fetching all standard feature specs, two generate runs
+  with cloud repairs, pushing every example twice). The e-mail's number most likely lagged behind them.
+  Not proven: Onshape's per-day usage (My Account → Developer, free in the browser) would confirm it.
+- The keys were never in git history or in any Onshape document (fsgen sends them only as the request's basic
+  auth to cad.onshape.com). They were rotated anyway, as a precaution.
+- Guard added: notification per run, daily cap across runs, keys in the macOS Keychain with an empty trusted-app
+  list (macOS asks on every read, one prompt per run because both keys are stored in one item), and a Claude
+  Code hook that logs Onshape MCP tool calls and asks before each one (the MCP server uses OAuth, not the keys).

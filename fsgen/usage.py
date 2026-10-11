@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass, field
 
-from dotenv import load_dotenv
+from .paths import load_env
 
 from .onshape import LEDGER
 
@@ -26,7 +26,7 @@ class Allocation:
 
 
 def allocation_status() -> Allocation:
-    load_dotenv()
+    load_env()
     allocation = int(os.environ.get("ONSHAPE_API_ALLOCATION", 2500))
     baseline = int(os.environ.get("ONSHAPE_API_BASELINE", 0))
     since = os.environ.get("ONSHAPE_API_BASELINE_DATE", "")
@@ -100,17 +100,19 @@ def estimate_push(tr, state=None, metrics: bool = True, exports: tuple = ()) -> 
     return Estimate(items)
 
 
-def set_official(used: int, env_path: str = ".env"):
+def set_official(used: int, env_path: str | None = None):
     """Make Onshape's official count the new baseline; later ledger entries are added on top of it.
 
     The ledger only sees fsgen's own calls; calls made through the FeatureScript MCP server (or other apps)
-    are only in Onshape's official number, so recalibrate from it now and then.
+    are only in Onshape's official number, so recalibrate from it now and then. The baseline is written to the
+    .env next to the ledger.
     """
     import re
     import time
     from pathlib import Path
 
-    p = Path(env_path)
+    p = Path(env_path) if env_path else LEDGER.parent / ".env"
+    p.parent.mkdir(parents=True, exist_ok=True)
     text = p.read_text() if p.exists() else ""
     stamp = time.strftime("%Y-%m-%dT%H:%M:%S")
     for key, val in (("ONSHAPE_API_BASELINE", str(used)), ("ONSHAPE_API_BASELINE_DATE", stamp)):
