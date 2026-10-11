@@ -1,0 +1,49 @@
+# Offline only: the tests use a fake Onshape server (fsgen/costmodel.py) and never need API keys.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e . pytest
+      - run: pytest -q
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      # The wheel must work outside the repo: bundled rules, examples, catalog and featuretree.
+      - name: Install the wheel and use it from another folder
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install dist/*.whl
+          mkdir -p /tmp/elsewhere/parts && cp examples/native/plate.fs /tmp/elsewhere/parts/
+          cd /tmp/elsewhere
+          export FSGEN_HOME=/tmp/fsgen-home
+          /tmp/clean/bin/fsgen --version
+          /tmp/clean/bin/fsgen spec | grep -q "Hole feature"
+          /tmp/clean/bin/fsgen spec --fit | grep -q "fit.toml"
+          /tmp/clean/bin/fsgen studio build parts/plate.fs
+          /tmp/clean/bin/fsgen recognize out/plate/plate.step

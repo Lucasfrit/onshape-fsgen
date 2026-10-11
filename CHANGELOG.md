@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (unreleased)
 
 ### Added
 
@@ -22,6 +22,9 @@
 - The API call ledger moves to `~/.config/fsgen/api_ledger.jsonl`, so all folders share one count; an existing
   `.fsgen_api_ledger.jsonl` in the working directory is still used. `fsgen usage --set-official` writes the baseline
   to the `.env` next to the ledger.
+- A push stopped by the daily cap or a run budget says so and how to continue (pushing again resumes; the
+  features already sent are not re-sent) instead of printing a traceback.
+- CI: offline tests on Python 3.11–3.14, and a check that the built wheel works outside the repo.
 
 ## 0.2.0 (2026-10-10)
 

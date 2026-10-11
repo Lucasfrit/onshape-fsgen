@@ -1,6 +1,6 @@
 [project]
 name = "onshape-fsgen"
-version = "0.2.0"
+version = "0.3.0"
 description = "Part descriptions -> native, editable Onshape feature trees, checked and previewed locally first"
 requires-python = ">=3.11,<3.15"
 license = "MIT"

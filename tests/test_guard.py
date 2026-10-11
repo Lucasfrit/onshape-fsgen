@@ -70,3 +70,39 @@ def test_keys_store_moves_keys_out_of_env(tmp_path, monkeypatch):
     text = (tmp_path / ".env").read_text()
     assert stored == [("abc", "def")] and "abc" not in text and "def\n" not in text
     assert "ONSHAPE_API_ALLOCATION=2500" in text
+
+
+BLOCK = """FeatureScript 3083;
+import(path : "onshape/std/common.fs", version : "3083.0");
+
+export function build(context is Context, id is Id)
+{
+    var sk = newSketch(context, id + "Block sketch", { "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE) });
+    skRectangle(sk, "outline", { "firstCorner" : vector(-20, -10) * millimeter, "secondCorner" : vector(20, 10) * millimeter });
+    skSolve(sk);
+    extrude(context, id + "Block", { "entities" : qSketchRegion(id + "Block sketch"),
+        "operationType" : NewBodyOperationType.NEW, "endBound" : BoundingType.BLIND, "depth" : 5 * millimeter });
+}
+"""
+
+
+def test_push_stopped_by_the_daily_cap_says_so_and_resumes(tmp_path, monkeypatch, capsys):
+    from fsgen import cli
+    monkeypatch.setenv("ONSHAPE_ACCESS_KEY", "a")
+    monkeypatch.setenv("ONSHAPE_SECRET_KEY", "b")
+    monkeypatch.setenv("FSGEN_DAILY_BUDGET", "3")
+    (tmp_path / "block.fs").write_text(BLOCK)
+    argv = ["studio", "push", "block.fs", "--document", f"https://cad.onshape.com/documents/{'a' * 24}/w/{'b' * 24}"]
+    ledger = tmp_path / "ledger.jsonl"
+    _ledger(ledger, n_today=1)
+    with fake_onshape(), mock.patch.object(O, "LEDGER", ledger):
+        with pytest.raises(SystemExit) as e:
+            cli.main(argv)  # 1 call earlier today + Part Studio + sketch = 3: the extrude is not sent
+        out = capsys.readouterr().out
+        assert e.value.code == 3 and "stopped: daily cap of 3" in out and "push again" in out
+        assert "Onshape API calls this run: 2" in out
+        monkeypatch.setenv("FSGEN_DAILY_BUDGET", "10")
+        with pytest.raises(SystemExit) as e:
+            cli.main(argv)
+        out = capsys.readouterr().out
+        assert e.value.code == 0 and "built 1, reused 1" in out

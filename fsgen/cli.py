@@ -199,16 +199,22 @@ def cmd_studio(args):
                 open_in_freecad(files[0])
         print(f"({loc.seconds * 1000:.0f} ms, 0 Onshape calls)")
         return 0 if loc.ok else 1
-    from .onshape import Onshape
+    from .onshape import BudgetExceeded, Onshape
 
     if args.budget is not None and est.total > args.budget:
         print(f"refusing to push: estimate {est.total} exceeds --budget {args.budget}")
         return 1
     o = Onshape(purpose=f"studio push {path.name}")
     from .cloud import target_workspace
-    ws = target_workspace(o, args.document)
-    st = nb.get_studio(o, args.name or path.stem, ws["did"], ws["wid"], fresh=args.fresh)
-    r = nb.push_trace(o, st, tr)
+    try:
+        ws = target_workspace(o, args.document)
+        st = nb.get_studio(o, args.name or path.stem, ws["did"], ws["wid"], fresh=args.fresh)
+        r = nb.push_trace(o, st, tr)
+    except BudgetExceeded as e:
+        print(f"stopped: {e}")
+        print("the features sent so far are saved: push again to continue from there (they are not re-sent)")
+        print(o.summary())
+        return 3
     from .native import catalog
     if r.ok:
         learned = catalog.record_success(tr.features, path.read_text(), str(path))
@@ -555,7 +561,13 @@ def main(argv=None):
     c.set_defaults(fn=cmd_compare)
 
     args = ap.parse_args(argv)
-    sys.exit(args.fn(args))
+    from .onshape import BudgetExceeded
+    try:
+        code = args.fn(args)
+    except BudgetExceeded as e:
+        print(f"stopped: {e}")
+        code = 3
+    sys.exit(code)
 
 
 if __name__ == "__main__":
