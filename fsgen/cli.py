@@ -282,12 +282,44 @@ def cmd_usage(args):
         print(f"recorded official count {args.set_official} (from the MCP get_api_usage tool) as the new baseline")
     a = allocation_status()
     print(f"Onshape API allocation: {a.used} / {a.allocation} used ({a.used / a.allocation:.0%}); {a.left} left")
+    from .onshape import calls_today
+    cap = os.environ.get("FSGEN_DAILY_BUDGET")
+    print(f"today: {calls_today()} calls" + (f" (daily cap {cap})" if cap else " (no daily cap: FSGEN_DAILY_BUDGET)"))
     if a.logged:
         purposes, calls = breakdown(a.logged, args.top)
         print("logged since baseline by command:", ", ".join(f"{k} {v}" for k, v in purposes))
         print("top endpoints:")
         for k, v in calls:
             print(f"  {v:5d}  {k}")
+    return 0
+
+
+def cmd_keys(args):
+    """Move the Onshape API keys from .env into the macOS Keychain, or show where they come from."""
+    import re
+    from dotenv import load_dotenv
+    from .onshape import keychain_has_keys, keychain_store
+
+    load_dotenv()
+    env = Path(".env")
+    ak, sk = os.environ.get("ONSHAPE_ACCESS_KEY"), os.environ.get("ONSHAPE_SECRET_KEY")
+    if args.action == "status":
+        print("keys in .env / environment:", "yes" if ak and sk else "no")
+        print("keys in the macOS Keychain (fsgen-onshape):", "yes" if keychain_has_keys() else "no")
+        if ak and sk:
+            print("fsgen uses the .env keys; `fsgen keys store` moves them into the Keychain")
+        return 0
+    if not (ak and sk):
+        print("no keys in .env to store: put ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY in .env first")
+        return 1
+    keychain_store(ak, sk)
+    if env.exists():
+        text = env.read_text()
+        for key in ("ONSHAPE_ACCESS_KEY", "ONSHAPE_SECRET_KEY"):
+            text = re.sub(rf"^{key}=.*$", f"{key}=  # in the macOS Keychain (fsgen keys store)", text, flags=re.M)
+        env.write_text(text)
+    print("stored in the macOS Keychain as \"fsgen-onshape\" and removed from .env.")
+    print("macOS now asks before each run that calls Onshape: click Allow (not Always Allow) to keep that check.")
     return 0
 
 
@@ -468,6 +500,10 @@ def main(argv=None):
     us.add_argument("--set-official", type=int, metavar="N",
                     help="record Onshape's official used count (e.g. from the MCP get_api_usage tool) as the baseline")
     us.set_defaults(fn=cmd_usage)
+
+    ks = sub.add_parser("keys", help="Onshape API keys: move them from .env into the macOS Keychain, or show status")
+    ks.add_argument("action", choices=["store", "status"])
+    ks.set_defaults(fn=cmd_keys)
 
     fe = sub.add_parser("features", help="feature catalog: verified / learned / available")
     fe.add_argument("feature", nargs="?", help="show one feature type with its settable parameters")

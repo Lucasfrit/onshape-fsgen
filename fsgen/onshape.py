@@ -1,9 +1,12 @@
 """Minimal Onshape REST client using API-key basic auth."""
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import re
+import subprocess
+import sys
 import time
 from pathlib import Path
 from dataclasses import dataclass
@@ -52,6 +55,64 @@ class BudgetExceeded(OnshapeError):
 
 
 LEDGER = Path(".fsgen_api_ledger.jsonl")
+KEYCHAIN_SERVICE = "fsgen-onshape"  # macOS Keychain item holding "access:secret" (fsgen keys store)
+
+
+def _keychain(*args: str) -> subprocess.CompletedProcess | None:
+    if sys.platform != "darwin":
+        return None
+    try:
+        return subprocess.run(["security", *args], capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+
+def keychain_has_keys() -> bool:
+    """Whether the Keychain item exists (reading its attributes does not ask for permission)."""
+    r = _keychain("find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", "onshape")
+    return r is not None and r.returncode == 0
+
+
+def keychain_keys() -> tuple[str, str] | None:
+    """The API keys from the Keychain. The item trusts no app, so macOS asks every time (one prompt per run)."""
+    r = _keychain("find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", "onshape", "-w")
+    if r is None or r.returncode != 0 or ":" not in r.stdout:
+        return None
+    ak, sk = r.stdout.strip().split(":", 1)
+    return ak, sk
+
+
+def keychain_store(access_key: str, secret_key: str):
+    r = _keychain("add-generic-password", "-U", "-s", KEYCHAIN_SERVICE, "-a", "onshape", "-l", "fsgen Onshape API keys",
+                  "-T", "", "-w", f"{access_key}:{secret_key}")
+    if r is None or r.returncode != 0:
+        raise OnshapeError(f"could not store the keys in the Keychain: {r.stderr.strip() if r else 'not macOS'}")
+
+
+def calls_today() -> int:
+    """Counted calls logged today by any fsgen run (the daily cap counts across processes)."""
+    if not isinstance(LEDGER, Path) or not LEDGER.exists():
+        return 0
+    today = time.strftime("%Y-%m-%d")
+    n = 0
+    for line in LEDGER.read_text().splitlines():
+        if line.startswith('{"t": "' + today) and '"counted": true' in line:
+            n += 1
+    return n
+
+
+def notify(title: str, message: str):
+    """macOS notification (off in tests, on other systems, or with FSGEN_NOTIFY=0)."""
+    if sys.platform != "darwin" or os.environ.get("FSGEN_NOTIFY", "1") == "0" or "PYTEST_CURRENT_TEST" in os.environ:
+        return
+    esc = lambda t: t.replace("\\", "\\\\").replace('"', '\\"')
+    try:
+        subprocess.run(["osascript", "-e", f'display notification "{esc(message)}" with title "{esc(title)}"'],
+                       capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 _ID = re.compile(r"/[0-9a-f]{24}(?=/|$)")
 
 
@@ -80,23 +141,51 @@ class Onshape:
         self.base = (base_url or os.environ.get("ONSHAPE_BASE_URL", "https://cad.onshape.com")).rstrip("/")
         ak = access_key or os.environ.get("ONSHAPE_ACCESS_KEY")
         sk = secret_key or os.environ.get("ONSHAPE_SECRET_KEY")
-        if not (ak and sk):
-            raise OnshapeError("ONSHAPE_ACCESS_KEY / ONSHAPE_SECRET_KEY not set (see .env.example)")
+        if not (ak and sk) and not keychain_has_keys():
+            raise OnshapeError("Onshape API keys not found: set ONSHAPE_ACCESS_KEY / ONSHAPE_SECRET_KEY in .env "
+                               "(see .env.example) or store them with `fsgen keys store`")
         self.remaining: dict[str, str | None] = {}  # endpoint family -> X-Rate-Limit-Remaining
-        self.auth = (ak, sk)
+        self._auth = (ak, sk) if ak and sk else None  # Keychain keys are read at the first call, not before
         self.s = requests.Session()
         self.s.headers.update({"Accept": "application/json;charset=UTF-8; qs=0.09"})
         self.calls = 0  # counted (2xx/3xx) calls made by this client
         self.by_endpoint: dict[str, int] = {}
         env_budget = os.environ.get("ONSHAPE_RUN_BUDGET")
         self.budget = budget if budget is not None else (int(env_budget) if env_budget else None)
+        daily = os.environ.get("FSGEN_DAILY_BUDGET")
+        self.daily_budget = int(daily) if daily else None
+        self._today_before: int | None = None  # counted calls logged today before this client's first call
+        self._notify_registered = False
         self.purpose = purpose
         self.run_id = time.strftime("%Y%m%d-%H%M%S")
+
+    @property
+    def auth(self) -> tuple[str, str]:
+        if self._auth is None:
+            self._auth = keychain_keys()
+            if self._auth is None:
+                raise OnshapeError("could not read the Onshape API keys from the Keychain (access denied?)")
+        return self._auth
+
+    def _notify_at_exit(self):
+        if self.calls == 0:
+            return
+        msg = f"{self.calls} call{'s' if self.calls != 1 else ''}" + (f" ({self.purpose})" if self.purpose else "")
+        try:
+            from .usage import allocation_status
+            a = allocation_status()
+            msg += f"; today {calls_today()}; year {a.used}/{a.allocation}"
+        except Exception:
+            pass
+        notify("fsgen used the Onshape API", msg)
 
     def _record(self, method, url, status):
         counted = status < 400 and url.startswith(self.base)
         if counted:
             self.calls += 1
+            if not self._notify_registered:
+                atexit.register(self._notify_at_exit)
+                self._notify_registered = True
             key = endpoint_key(method, url)
             self.by_endpoint[key] = self.by_endpoint.get(key, 0) + 1
         try:
@@ -118,6 +207,13 @@ class Onshape:
         for attempt in range(5):
             if self.budget is not None and self.calls >= self.budget and url.startswith(self.base):
                 raise BudgetExceeded(f"run budget of {self.budget} Onshape calls reached ({self.summary()})")
+            if self.daily_budget is not None and url.startswith(self.base):
+                if self._today_before is None:
+                    self._today_before = calls_today()
+                if self._today_before + self.calls >= self.daily_budget:
+                    raise BudgetExceeded(f"daily cap of {self.daily_budget} Onshape calls reached "
+                                         f"({self._today_before + self.calls} today). Raise FSGEN_DAILY_BUDGET in "
+                                         ".env if this is intended.")
             # Exports redirect to another host: follow manually, and only send credentials to Onshape.
             r = self.s.request(method, url, json=json, params=params, headers=headers,
                                auth=self.auth if url.startswith(self.base) else None,

@@ -85,7 +85,8 @@ In a chat, any coding assistant can be the designer instead: see `AGENTS.md`.
 | `/make-part <description>` (in a Claude Code chat) | the chat designs `parts/<name>.fs` with the commands below; you steer, then paste or push |
 | `fsgen studio paste script.fs` | custom feature to paste into a Feature Studio (0 calls; clipboard + optional Dropbox copy) |
 | `fsgen recognize part.step` | STEP → editable Part Studio script via featuretree recognition (0 calls) |
-| `fsgen usage [--set-official N]` | API calls used/left |
+| `fsgen usage [--set-official N]` | API calls used/left, and today's calls against `FSGEN_DAILY_BUDGET` |
+| `fsgen keys store` / `fsgen keys status` | move the Onshape keys from `.env` into the macOS Keychain (macOS then asks before each run that uses them) / show where they are |
 | `fsgen spec` | print the instructions/spec the designer follows (rules, catalog, examples) |
 | `fsgen studio check script.fs` | trace + build locally (0 calls): features, geometry report, errors, print check (overhangs flatter than 45° off the bed) |
 | `fsgen studio build script.fs` | local build + STEP/STL/PNG in `out/<name>/` (0 calls) |

@@ -182,6 +182,7 @@ Also: **STEP → editable tree** (`fsgen recognize part.step`) using
 | `fsgen recognize part.step` | STEP → editable Part Studio script | 0 |
 | `fsgen features [type]` | feature catalog / one feature's parameters | 0 |
 | `fsgen usage` | API calls used and left | 0 |
+| `fsgen keys store` | keep the Onshape keys in the macOS Keychain instead of `.env` | 0 |
 
 All commands and options: [docs/REFERENCE.md](docs/REFERENCE.md).
 

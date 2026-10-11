@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **API guard**: a macOS notification after every run that used the Onshape API (calls, purpose, today's and
+  the year's total); a daily cap across all runs (`FSGEN_DAILY_BUDGET`); `fsgen keys store` keeps the API keys
+  in the macOS Keychain, where macOS asks before each run that reads them. `fsgen usage` shows today's calls.
+
 ## 0.2.0 (2026-10-10)
 
 ### Added
