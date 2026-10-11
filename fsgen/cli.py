@@ -268,9 +268,40 @@ def cmd_recognize(args):
 
 def cmd_spec(args):
     """The instructions the LLM gets (dialect spec + rules.md + feature catalog + verified examples)."""
+    if args.fit:
+        from .native import fit
+        print(fit.__doc__.strip())
+        return 0
     from .native import prompts
     print(prompts.system_prompt())
     return 0
+
+
+def cmd_rules(args):
+    """Which rules.md the designer follows; --init copies the bundled default to the user's config to edit."""
+    import shutil
+    from .native import prompts
+
+    user = prompts.user_rules_path()
+    if args.init:
+        if user.exists():
+            print("already there:", user)
+            return 1
+        user.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(prompts.DEFAULT_RULES, user)
+        print("copied the default rules to", user, "- edit it; `fsgen spec` and `fsgen generate` use it from now on")
+        return 0
+    path = prompts.rules_path()
+    print(path, "(your rules)" if path == user else f"(the default; `fsgen rules --init` copies it to {user} to edit)")
+    return 0
+
+
+def _version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        return version("onshape-fsgen")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def cmd_usage(args):
@@ -297,11 +328,12 @@ def cmd_usage(args):
 def cmd_keys(args):
     """Move the Onshape API keys from .env into the macOS Keychain, or show where they come from."""
     import re
-    from dotenv import load_dotenv
+    from dotenv import find_dotenv
     from .onshape import keychain_has_keys, keychain_store
+    from .paths import config_dir, load_env
 
-    load_dotenv()
-    env = Path(".env")
+    load_env()
+    envs = [Path(f) for f in (find_dotenv(usecwd=True), config_dir() / ".env") if f and Path(f).exists()]
     ak, sk = os.environ.get("ONSHAPE_ACCESS_KEY"), os.environ.get("ONSHAPE_SECRET_KEY")
     if args.action == "status":
         print("keys in .env / environment:", "yes" if ak and sk else "no")
@@ -313,7 +345,7 @@ def cmd_keys(args):
         print("no keys in .env to store: put ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY in .env first")
         return 1
     keychain_store(ak, sk)
-    if env.exists():
+    for env in envs:
         text = env.read_text()
         for key in ("ONSHAPE_ACCESS_KEY", "ONSHAPE_SECRET_KEY"):
             text = re.sub(rf"^{key}=.*$", f"{key}=  # in the macOS Keychain (fsgen keys store)", text, flags=re.M)
@@ -424,6 +456,7 @@ def cmd_watch(args):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="fsgen", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--version", action="version", version=f"fsgen {_version()}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     g = sub.add_parser("generate", help="prompt -> FeatureScript -> geometry")
@@ -493,7 +526,12 @@ def main(argv=None):
     rc.set_defaults(fn=cmd_recognize)
 
     sp = sub.add_parser("spec", help="print the Part Studio script spec, rules, catalog and examples")
+    sp.add_argument("--fit", action="store_true", help="print the fit file format (parts/<name>.fit.toml) instead")
     sp.set_defaults(fn=cmd_spec)
+
+    ru = sub.add_parser("rules", help="show which rules.md is used; --init makes your own copy to edit")
+    ru.add_argument("--init", action="store_true", help="copy the default rules to your config folder")
+    ru.set_defaults(fn=cmd_rules)
 
     us = sub.add_parser("usage", help="Onshape API calls used vs. the annual allocation")
     us.add_argument("--top", type=int, default=12)

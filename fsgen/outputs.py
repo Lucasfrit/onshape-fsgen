@@ -6,11 +6,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from dotenv import load_dotenv
+from .paths import load_env
 
 
 def to_dropbox(name: str, files) -> list[Path]:
-    load_dotenv()
+    load_env()
     root = os.environ.get("FSGEN_DROPBOX_DIR")
     if not root:
         return []

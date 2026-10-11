@@ -8,7 +8,8 @@ commands, the FS-Lite language, and Onshape behaviours measured while building f
 The EDU plan allows **2500 counted calls per year**. Onshape counts every 2xx/3xx response (each redirect hop
 too); 4xx/5xx, browser use and public App Store apps are free ([Onshape API limits](https://onshape-public.github.io/docs/auth/limits/)).
 
-- Every call is logged in `.fsgen_api_ledger.jsonl`; each command ends with `Onshape API calls this run: N`.
+- Every call is logged in `~/.config/fsgen/api_ledger.jsonl` (a `.fsgen_api_ledger.jsonl` in the working
+  directory is used instead if it exists); each command ends with `Onshape API calls this run: N`.
 - `fsgen usage` shows used/remaining vs. the allocation; record Onshape's official count with
   `fsgen usage --set-official N` (e.g. from the FeatureScript MCP server's `get_api_usage`).
 - `ONSHAPE_RUN_BUDGET` (default 60) or `--budget N` stops a run before it overspends.
@@ -36,7 +37,20 @@ are always written.
 ## General rules (`rules.md`)
 
 `rules.md` holds the modelling rules, one instruction per bullet (e.g. *no Hole feature unless asked; holes are
-sketch + extrude REMOVE*). It's sent with every request and checked in the review step. Edit it freely.
+sketch + extrude REMOVE*). It's sent with every request and checked in the review step. Edit it freely:
+`fsgen rules --init` copies the default to `~/.config/fsgen/rules.md`, which then replaces it; `fsgen rules`
+shows which file is used.
+
+## Where fsgen keeps things
+
+| what | where |
+|---|---|
+| settings, API keys, budget baseline | `.env` in the working directory (or a parent), then `~/.config/fsgen/.env` |
+| your rules | `~/.config/fsgen/rules.md` (else the bundled default) |
+| API call ledger | `~/.config/fsgen/api_ledger.jsonl` |
+| scripts, outputs, pushed Part Studio ids | the working directory: `parts/`, `out/`, `.fsgen_native.json` |
+
+`~/.config/fsgen` is `$XDG_CONFIG_HOME/fsgen` if that is set; `FSGEN_HOME` moves all of it.
 
 ## Which features are available, and how new ones get added
 
@@ -82,12 +96,13 @@ In a chat, any coding assistant can be the designer instead: see `AGENTS.md`.
 | command | what it does |
 |---|---|
 | `fsgen generate "<request>" [--name N] [--paste] [--reviews 2] [--no-web] [--document URL]` | **native**: prompt → script → Onshape feature tree → repair/review → `out/native/<run>/` (script, STEP/STL, Onshape renders, transcripts) |
-| `/make-part <description>` (in a Claude Code chat) | the chat designs `parts/<name>.fs` with the commands below; you steer, then paste or push |
+| `/onshape-fsgen:make-part <description>` (Claude Code plugin; `/make-part` in a checkout) | the chat designs `parts/<name>.fs` with the commands below; you steer, then paste or push |
 | `fsgen studio paste script.fs` | custom feature to paste into a Feature Studio (0 calls; clipboard + optional Dropbox copy) |
 | `fsgen recognize part.step` | STEP → editable Part Studio script via featuretree recognition (0 calls) |
 | `fsgen usage [--set-official N]` | API calls used/left, and today's calls against `FSGEN_DAILY_BUDGET` |
 | `fsgen keys store` / `fsgen keys status` | move the Onshape keys from `.env` into the macOS Keychain (macOS then asks before each run that uses them) / show where they are |
-| `fsgen spec` | print the instructions/spec the designer follows (rules, catalog, examples) |
+| `fsgen spec [--fit]` | print the instructions/spec the designer follows (rules, catalog, examples); `--fit`: the fit file format |
+| `fsgen rules [--init]` | which rules.md is used; `--init` copies the default to your config folder to edit |
 | `fsgen studio check script.fs` | trace + build locally (0 calls): features, geometry report, errors, print check (overhangs flatter than 45° off the bed) |
 | `fsgen studio build script.fs` | local build + STEP/STL/PNG in `out/<name>/` (0 calls) |
 | `fsgen studio fit script.fs [--fit F]` | assembled-position check from `script.fit.toml` (0 calls): parts moved from the print layout into place, components (STEP files, cylinders, boxes), overlaps, and motions (hinge turned, part slid off) with free/snap/blocked/collides verdicts; writes `out/<name>/<name>_assembled.step`. Format: `fsgen/native/fit.py`, example: `examples/native/fit/` |

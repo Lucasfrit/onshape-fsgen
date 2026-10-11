@@ -14,7 +14,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     for k in ("ONSHAPE_ACCESS_KEY", "ONSHAPE_SECRET_KEY", "FSGEN_DAILY_BUDGET", "ONSHAPE_RUN_BUDGET"):
         monkeypatch.delenv(k, raising=False)
-    monkeypatch.setattr(O, "load_dotenv", lambda *a, **k: None)
+    monkeypatch.setattr(O, "load_env", lambda *a, **k: None)
 
 
 def _ledger(path, n_today, n_yesterday=0):

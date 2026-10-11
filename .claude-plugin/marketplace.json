@@ -1,0 +1,15 @@
+{
+  "name": "onshape-fsgen",
+  "description": "fsgen: AI-designed parts as native, editable Onshape feature trees.",
+  "owner": {
+    "name": "Lucasfrit",
+    "url": "https://github.com/Lucasfrit"
+  },
+  "plugins": [
+    {
+      "name": "onshape-fsgen",
+      "source": "./plugins/onshape-fsgen",
+      "description": "Design parts as native, editable Onshape feature trees, checked and previewed locally before anything is sent to Onshape."
+    }
+  ]
+}

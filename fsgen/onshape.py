@@ -12,7 +12,8 @@ from pathlib import Path
 from dataclasses import dataclass
 
 import requests
-from dotenv import load_dotenv
+
+from .paths import ledger_path, load_env
 
 API_VERSION = "v10"
 
@@ -54,7 +55,7 @@ class BudgetExceeded(OnshapeError):
     pass
 
 
-LEDGER = Path(".fsgen_api_ledger.jsonl")
+LEDGER = ledger_path()
 KEYCHAIN_SERVICE = "fsgen-onshape"  # macOS Keychain item holding "access:secret" (fsgen keys store)
 
 
@@ -131,13 +132,13 @@ class Onshape:
     """Onshape REST client with call accounting.
 
     Onshape's annual allocation (2500 calls/year on EDU) counts every request answered with 2xx or 3xx
-    (each redirect hop counts). 4xx/5xx are free. Every hop is appended to .fsgen_api_ledger.jsonl and
+    (each redirect hop counts). 4xx/5xx are free. Every hop is appended to the ledger (paths.ledger_path) and
     counted in `self.calls`; `budget` (or ONSHAPE_RUN_BUDGET) stops a run before it overspends.
     """
 
     def __init__(self, access_key: str | None = None, secret_key: str | None = None,
                  base_url: str | None = None, budget: int | None = None, purpose: str = ""):
-        load_dotenv()
+        load_env()
         self.base = (base_url or os.environ.get("ONSHAPE_BASE_URL", "https://cad.onshape.com")).rstrip("/")
         ak = access_key or os.environ.get("ONSHAPE_ACCESS_KEY")
         sk = secret_key or os.environ.get("ONSHAPE_SECRET_KEY")
@@ -189,6 +190,7 @@ class Onshape:
             key = endpoint_key(method, url)
             self.by_endpoint[key] = self.by_endpoint.get(key, 0) + 1
         try:
+            LEDGER.parent.mkdir(parents=True, exist_ok=True)
             with LEDGER.open("a") as f:
                 f.write(json.dumps({"t": time.strftime("%Y-%m-%dT%H:%M:%S"), "run": self.run_id,
                                     "purpose": self.purpose, "call": endpoint_key(method, url),
